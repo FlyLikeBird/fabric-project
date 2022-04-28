@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  
+<head>
+    <!-- FabricJS CDN -->
+    <script src=
+"https://cdn.bootcdn.net/ajax/libs/fabric.js/4.2.0/fabric.js">
+    </script>
+</head>
+  
+<body>
+    <div style="text-align: center; width: 400px;">
+        <h1 style="color: green;">
+            GeeksforGeeks
+        </h1>
+  
+        <b>
+            Fabric.js | ActiveSelection evented Property
+        </b>
+    </div>
+  
+    <div style="text-align: center;">
+        <canvas id="canvas" width="500" height="500" 
+            style="border:1px solid green;">
+        </canvas>
+    </div>
+  
+    <img src=
+"https://media.geeksforgeeks.org/wp-content/uploads/20200327230544/g4gicon.png"
+        width="100" height="100"
+        id="my-image" style="display: none;">
+          
+    <script>
+        var canvas = new fabric.Canvas("canvas");
+  
+        // Getting the image 
+        var img = document.getElementById('my-image');
+  
+        // Creating the image instance 
+        var geek = new fabric.Image(img, {
+        });
+  
+        canvas.add(geek);
+  
+        var geek = new fabric.IText('GeeksforGeeks', {
+        });
+        canvas.add(geek);
+        canvas.centerObject(geek);
+  
+        var gfg = new fabric.ActiveSelection(
+            canvas.getObjects(), {
+            evented: false
+        });
+        console.log(gfg.evented)
+        canvas.setActiveObject(gfg);
+        canvas.requestRenderAll();
+        canvas.centerObject(gfg);
+    </script>
+</body>
+  
+</html>
