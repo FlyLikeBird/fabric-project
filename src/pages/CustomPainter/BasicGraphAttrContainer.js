@@ -20,17 +20,19 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, onChangeAttr
     },[currentTarget]);
     // console.log(basicGraphs.filter(i=>i.type.toLowerCase() === currentTarget.type)[0].attrs);
     console.log(currentTarget);
+    console.log(attrInfo);
+
     return (
         <div className={style['attr-container']}>
-           
             {
-                currentTarget && currentTarget.type 
+                currentTarget && currentTarget.type === 'group'
                 ?           
-                basicGraphs.filter(i=>i.type.toLowerCase() === currentTarget.type)[0].attrs.map(attr=>{
+                basicGraphs.filter(i=>i.type.toLowerCase() === currentTarget._objects[0].type )[0].attrs.map(attr=>{
                     return (<div className={style['attr-item-wrapper']} key={attr.attrKey}>
                         <span>{ attr.attrName }:</span>
                         <Input value={attrInfo[attr.attrKey]} className={style['attr-input']} style={{ width:'120px' }} onChange={e=>{
                             onChangeAttr({ ...attrInfo, [attr.attrKey]:e.target.value });
+                            clearTimeout(timer);
                             timer = setTimeout(()=>{
                                 updateTargetAttr(canvas, currentTarget, attr.attrKey, Number(e.target.value))
                             },500);
@@ -38,7 +40,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, onChangeAttr
                     </div>)
                 })
                 :
-                <div>hello world</div>
+                null
             }
             <div className={style['attr-item-wrapper']}>
                 <span>X轴缩放:</span>

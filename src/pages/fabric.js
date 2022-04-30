@@ -740,7 +740,7 @@ fabric.CommonMethods = {
     rotatePoint: function(point, origin, radians) {
       var newPoint = new fabric.Point(point.x - origin.x, point.y - origin.y),
           v = fabric.util.rotateVector(newPoint, radians);
-        console.log(v);
+        // console.log(v);
           return new fabric.Point(v.x, v.y).addEquals(origin);
     },
 

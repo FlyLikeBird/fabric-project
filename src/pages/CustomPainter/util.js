@@ -10,17 +10,34 @@ let machList = [
     { key:'mach4', type:'Image', title:'空压机4', path:img4, attrs:[] },
 ];
 
-export let initGraphAttr = { width:0, height:0, radius:0, rx:0, ry:0, scaleX:1, scaleY:1, angle:0, fill:'#cccccc', stroke:'#000000', strokeWidth:1 }
+export let initGraphAttr = { text:'', fontSize:14, fontColor:'#000000', width:0, height:0, radius:0, rx:0, ry:0, scaleX:1, scaleY:1, angle:0, fill:'#cccccc', stroke:'#000000', strokeWidth:1 }
 export let basicGraphs = [
-    { key:'Rect', type:'Rect', title:'矩形', attrs:[{ attrKey:'width', attrName:'宽度', attrValue:200 }, { attrKey:'height', attrName:'高度', attrValue:150 }]},
-    { key:'Circle', type:'Circle', title:'圆形', attrs:[{ attrKey:'radius', attrName:'半径', attrValue:50 }] },
-    { key:'Ellipse', type:'Ellipse', title:'椭圆形', attrs:[{ attrKey:'rx', attrName:'横向轴', attrValue:200}, { attrKey:'ry', attrName:'纵向轴', attrValue:100 }]},
-    { key:'Triangle', type:'Triangle', title:'三角形', attrs:[{ attrKey:'width', attrName:'宽度', attrValue:200 }, { attrKey:'height', attrName:'高度', attrValue:150 }]},
+    // width,height 描述边界框的范围
+    { key:'Rect', type:'Rect', title:'矩形', width:200, height:150, attrs:[{ attrKey:'width', attrName:'宽度', attrValue:200 }, { attrKey:'height', attrName:'高度', attrValue:150 }]},
+    { key:'Circle', type:'Circle', title:'圆形', width:100, height:100, attrs:[{ attrKey:'radius', attrName:'半径', attrValue:50 }] },
+    { key:'Ellipse', type:'Ellipse', title:'椭圆形', width:240, height:160, attrs:[{ attrKey:'rx', attrName:'横向轴', attrValue:120}, { attrKey:'ry', attrName:'纵向轴', attrValue:80 }]},
+    { key:'Triangle', type:'Triangle', title:'三角形', width:200, height:150, attrs:[{ attrKey:'width', attrName:'宽度', attrValue:200 }, { attrKey:'height', attrName:'高度', attrValue:150 }]},
     ...machList
 ];
 
 let pathObj = null;
 let currentIndex = 1;
+
+export function wrapperEvents(obj){
+    function handleTransform({ e, pointer, transform }){
+        let { target } = transform;
+        let boundingRect = target.getBoundingRect();
+        if ( target.childNode ){
+            target.childNode.set({
+                left:boundingRect.left + boundingRect.width/2 - target.childNode.width/2,
+                top:boundingRect.top + boundingRect.height + 10 
+            })
+        }
+    }
+    obj.on('moving', handleTransform);
+    obj.on('scaling', handleTransform);
+    obj.on('rotating', handleTransform);
+}
 export function createPath({ canvas, pointer }){
     if ( !pathObj ){
         // pathObj临时存储鼠标绘制的points, 等所有点都绘制完毕最后再生成Polyline对象                     
@@ -35,7 +52,6 @@ export function createPath({ canvas, pointer }){
         // Polyline添加新的定位点
         currentIndex++; 
     }
-    
     canvas.on('mouse:move', option=>{
         let { e, pointer:{ x, y }} = option;
         // console.log(option);
@@ -67,7 +83,81 @@ export function createPath({ canvas, pointer }){
         }
     });
 }
-
+// export function createPath({ canvas, pointer }){
+//     if ( !pathObj ){
+//         // pathObj临时存储鼠标绘制的points, 等所有点都绘制完毕最后再生成Polyline对象                     
+//         pathObj = new fabric.Polyline([{ x, y }],{
+//             stroke:'#000',
+//             strokeWidth:1,
+//             fill:'transparent',
+//             objectCaching:false
+//         });
+//         canvas.add(pathObj);
+//     } else {
+//         // Polyline添加新的定位点
+//         currentIndex++; 
+//     }
+//     canvas.on('mouse:move', option=>{
+//         let { e, pointer:{ x, y }} = option;
+//         // console.log(option);
+//         if ( pathObj ){
+//             let temp = [...pathObj.points];
+//             let lastPointPos = temp[currentIndex-1];
+//             // console.log(lastPointPos);
+//             let k = ( lastPointPos.y - y ) / (x - lastPointPos.x);
+//             if ( e.shiftKey ){                          
+//                 // console.log(k);
+//                 // console.log(x,y);
+//                 // 任意角度绘制连接线，当按住Shift键时，只能绘制0,45,90度的连接线
+//                 if ( Math.abs((Math.abs(k) - Math.tan(Math.PI/4))) <= 0.3 ) {
+//                     let offsetY = Math.abs(( x - lastPointPos.x )) * Math.tan(Math.PI/4);
+//                     let newY = y <= lastPointPos.y ? lastPointPos.y - offsetY : lastPointPos.y + offsetY; 
+//                     temp[currentIndex] = { x, y: newY };
+//                 } else if ( Math.abs(k) < Math.tan(Math.PI/4)) {
+//                     temp[currentIndex] = { x, y:lastPointPos.y };
+//                 } else {                      
+//                     temp[currentIndex] = { x:lastPointPos.x, y };
+//                 } 
+//             } else {                        
+//                 temp[currentIndex] = { x, y };
+//             }
+//             pathObj.set({
+//                 points:temp
+//             });
+//             canvas.renderAll();
+//         }
+//     });
+// }
+// function handlePosition(dim, finalMatrix, fabricObject){
+//     let objX = fabricObject.points[this.pointIndex].x - fabricObject.pathOffset.x;
+//     let objY = fabricObject.points[this.pointIndex].y - fabricObject.pathOffset.y;
+//     let result = fabric.util.transformPoint(
+//         { x:objX, y:objY },
+//         fabric.util.multiplyTransformMatrices(
+//             fabricObject.canvas.viewportTransform,
+//             fabricObject.calcTransformMatrix()
+//         )
+//     )
+//     return result;
+// }
+// function handleAction(evt, transform, x, y){
+//     console.log(transform);
+//     let target = transform.target;
+//     // 视窗坐标系下拖动点和图形对象中心点的距离
+//     let center = target.getCenterPoint();
+//     let currentControl = target.controls[target.__corner];
+//     let absoluteX = x - center.x ;
+//     let absoluteY = y - center.y;
+//     // 图形坐标系下拖动点和图形对象中心点距离
+//     let mouseLocalPosition = target.toLocalPoint(new fabric.Point(x, y), 'center', 'center')
+//     console.log('-----');
+//     console.log(mouseLocalPosition);
+//     let finalPoint = {
+//         x:absoluteX + target.pathOffset.x,
+//         y:absoluteY + target.pathOffset.y
+//     };
+//     return true;
+// }
 // 复制图形对象
 let activeObj = null;
 
@@ -130,24 +220,42 @@ export function cloneModel(canvas, target, pointer){
 // 更新图形对象的某项属性
 export function updateTargetAttr(canvas, target, attrName, value){
     if ( target ){
-        target.set({
-            [attrName]:value
-        });
+        if ( attrName === 'angle' ) {
+            group.set({ [attrName]:value });
+        } else if ( attrName === 'scaleX' || attrName === 'scaleY' ) {
+            group.set({ [attrName]:value });
+            canvas.renderAll();
+            // 当整组缩放时，调整文字对象的缩放以保持不变
+            let newBounding = group.getBoundingRect();
+            let centerPoint = group.getCenterPoint();
+            console.log(centerPoint);
+            console.log(newBounding);
+            textObj.set({ [attrName]:1/value, left:-textObj.width/2 });
+            console.log(group);
+        } else {
+            target.set({
+                [attrName]:value
+            });
+        }
         canvas.renderAll();
     }
 }
 
 export function getBasicAttrs(target){
+    let textObj = target.childNode;
     let width = target.get('width');
     let height = target.get('height');
+    let text = textObj.get('text');
+    let fontSize = textObj.get('fontSize');
+    let fontColor = textObj.get('fill');
     let radius = target.get('radius');
     let rx = target.get('rx');
     let ry = target.get('ry');
-    let scaleX = target.get('scaleX');
-    let scaleY = target.get('scaleY');
-    let angle = target.get('angle');
+    let scaleX = group.get('scaleX');
+    let scaleY = group.get('scaleY');
+    let angle = group.get('angle');
     let fill = target.get('fill');
     let stroke = target.get('stroke');
     let strokeWidth = target.get('strokeWidth');
-    return { width, height, radius:Math.round(radius), rx:Math.round(rx), ry:Math.round(ry), scaleX:scaleX.toFixed(1), scaleY:scaleY.toFixed(1), angle:angle.toFixed(1), fill, stroke, strokeWidth };
+    return { width, height, text, fontSize, fontColor, radius:Math.round(radius), rx:Math.round(rx), ry:Math.round(ry), scaleX:scaleX.toFixed(1), scaleY:scaleY.toFixed(1), angle:angle.toFixed(1), fill, stroke, strokeWidth };
 }
