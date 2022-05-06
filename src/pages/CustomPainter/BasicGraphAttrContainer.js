@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Input } from 'antd';
+import { Button, Input, Select, message } from 'antd';
 import { fabric } from 'fabric';
-import { updateTargetAttr, getBasicAttrs, basicGraphs } from './util';
+import { updateTargetAttr, updateTextAttr, getBasicAttrs, basicGraphs, connectModels } from './util';
 import style from './index.css';
-
+const { Option } = Select;
 let timer = null;
-
+let posList = [{ title:'左侧', key:'left'}, { title:'顶部', key:'top'}, { title:'右侧', key:'right'}, { title:'底部', key:'bottom' }];
 function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, onChangeAttr }){
+    let [direc, setDirec] = useState('left');
+    let [selectedId, setSelectedId] = useState('');
     useEffect(()=>{
         return ()=>{
             clearTimeout(timer);
@@ -15,63 +17,80 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, onChangeAttr
     },[]);
     useEffect(()=>{
         if ( currentTarget ){
-            onChangeAttr(getBasicAttrs(currentTarget))
+            onChangeAttr(getBasicAttrs(currentTarget));
+            if ( currentTarget.flowArr ){
+                let flowObj = currentTarget.flowArr[0];
+                setSelectedId(flowObj.end.objId);
+                setDirec(flowObj.direc);
+            } else {
+                setSelectedId('');
+                setDirec('left');
+            }
         }
     },[currentTarget]);
     // console.log(basicGraphs.filter(i=>i.type.toLowerCase() === currentTarget.type)[0].attrs);
-    console.log(currentTarget);
-    console.log(attrInfo);
-
+    let selectedModels = canvas.getObjects().filter(i=> i.type !== 'text' && i.type !== 'polyline' && i.objId !== currentTarget.objId);
     return (
         <div className={style['attr-container']}>
-            {
-                currentTarget && currentTarget.type === 'group'
-                ?           
-                basicGraphs.filter(i=>i.type.toLowerCase() === currentTarget._objects[0].type )[0].attrs.map(attr=>{
-                    return (<div className={style['attr-item-wrapper']} key={attr.attrKey}>
-                        <span>{ attr.attrName }:</span>
-                        <Input value={attrInfo[attr.attrKey]} className={style['attr-input']} style={{ width:'120px' }} onChange={e=>{
-                            onChangeAttr({ ...attrInfo, [attr.attrKey]:e.target.value });
-                            clearTimeout(timer);
-                            timer = setTimeout(()=>{
-                                updateTargetAttr(canvas, currentTarget, attr.attrKey, Number(e.target.value))
-                            },500);
-                        }} />
-                    </div>)
-                })
-                :
-                null
-            }
+            {/* 源对象和目标对象的流向定义 */}
             <div className={style['attr-item-wrapper']}>
-                <span>X轴缩放:</span>
-                <Input value={attrInfo.scaleX} className={style['attr-input']} style={{ width:'120px' }} onChange={e=>{
-                    onChangeAttr({ ...attrInfo, scaleX:e.target.value });
+                <span>连接至:</span>
+                <Select style={{ width:'120px' }} value={selectedId} onChange={value=>{
+                    let temp = selectedModels.filter(i=>i.objId === value)[0];
+                    setSelectedId(value);
+                    connectModels(canvas, currentTarget, temp, direc);
+                }}>
+                    {
+                        selectedModels.map((obj)=>(
+                            <Option key={obj.objId} value={obj.objId}>{ obj.childNode.text }</Option>
+                        ))
+                    }
+                </Select>
+            </div>
+            <div className={style['attr-item-wrapper']}>
+                <span>连接方向:</span>
+                <Select style={{ width:'120px' }} value={direc} onChange={value=>{
+                    setDirec(value);
+                    let temp = selectedModels.filter(i=>i.objId === selectedId)[0];
+                    if ( temp ){
+                        connectModels(canvas, currentTarget, temp, value);
+                    } else {
+                        message.info('请选择要连接的模型对象');
+                    }
+                }}>
+                    {
+                        posList.map((item)=>(
+                            <Option key={item.key} value={item.key}>{ item.title }</Option>
+                        ))
+                    }
+                </Select>
+            </div>
+            <div className={style['attr-item-wrapper']}>
+                <span>模型标题:</span>
+                <Input value={attrInfo.text} className={style['attr-input']} style={{ width:'120px' }} onChange={e=>{
+                    onChangeAttr({ ...attrInfo, text:e.target.value });
                     clearTimeout(timer);
                     timer = setTimeout(()=>{
-                        updateTargetAttr(canvas, currentTarget, 'scaleX', Number(e.target.value))
+                        updateTextAttr(canvas, currentTarget, 'text', e.target.value)
                     },500)
                 }} />  
             </div>
             <div className={style['attr-item-wrapper']}>
-                <span>Y轴缩放:</span>
-                <Input value={attrInfo.scaleY} className={style['attr-input']} style={{ width:'120px' }} onChange={e=>{
-                    onChangeAttr({ ...attrInfo, scaleY:e.target.value });
+                <span>标题大小:</span>
+                <Input value={attrInfo.fontSize} className={style['attr-input']} style={{ width:'120px' }} onChange={e=>{
+                    onChangeAttr({ ...attrInfo, fontSize:e.target.value });
                     clearTimeout(timer);
                     timer = setTimeout(()=>{
-                        updateTargetAttr(canvas, currentTarget, 'scaleY', Number(e.target.value))
+                        updateTextAttr(canvas, currentTarget, 'fontSize', Number(e.target.value))
                     },500)
                 }} />  
             </div>
             <div className={style['attr-item-wrapper']}>
-                <span>旋转角度:</span>
-                <Input value={attrInfo.angle} className={style['attr-input']} style={{ width:'120px' }} onChange={e=>{
-                    console.log(e.target.value);
-                    onChangeAttr({ ...attrInfo, angle:e.target.value });
-                    clearTimeout(timer);
-                    timer = setTimeout(()=>{
-                        updateTargetAttr(canvas, currentTarget, 'angle', Number(e.target.value))
-                    },500)
-                }} />  
+                <span>标题颜色:</span>
+                <input type='color' value={attrInfo.fontColor} className={style['attr-input']} onChange={e=>{
+                    onChangeAttr({ ...attrInfo, fontColor:e.target.value });
+                    updateTextAttr(canvas, currentTarget, 'fontColor', e.target.value);                 
+                }} />
             </div>
             {
                 currentTarget.type !== 'image' 
@@ -106,38 +125,67 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, onChangeAttr
                     <span>描边宽度:</span>
                     <input type='range' min={0} max={10} value={attrInfo.strokeWidth} className={style['attr-input']} onChange={e=>{
                         onChangeAttr({ ...attrInfo, strokeWidth:e.target.value });
-                        clearTimeout(timer);
-                        timer = setTimeout(()=>{
-                            updateTargetAttr(canvas, currentTarget, 'strokeWidth', Number(e.target.value) );
-                        },500)
+                        updateTargetAttr(canvas, currentTarget, 'strokeWidth', Number(e.target.value) );
                     }} />
                 </div>
                 :
                 null
             }
-            
+            {
+                currentTarget && currentTarget.type
+                ?           
+                basicGraphs.filter(i=>i.type.toLowerCase() === currentTarget.type )[0].attrs.map(attr=>{
+                    return (<div className={style['attr-item-wrapper']} key={attr.attrKey}>
+                        <span>{ attr.attrName }:</span>
+                        <Input value={attrInfo[attr.attrKey]} className={style['attr-input']} style={{ width:'120px' }} onChange={e=>{
+                            onChangeAttr({ ...attrInfo, [attr.attrKey]:e.target.value });
+                            clearTimeout(timer);
+                            timer = setTimeout(()=>{
+                                updateTargetAttr(canvas, currentTarget, attr.attrKey, Number(e.target.value))
+                            },500);
+                        }} />
+                    </div>)
+                })
+                :
+                null
+            }
             <div className={style['attr-item-wrapper']}>
-                <Button onClick={()=>{
-                    if ( currentTarget ){
-                        // 对象重置为初始状态
-                        let initState = basicGraphs.filter(i=>i.type.toLowerCase() === currentTarget.type)[0];
-                        onChangeAttr({ ...initState.attrs.reduce((sum,cur)=>{
-                           sum[cur.attrKey] = cur.attrValue;
-                           return sum; 
-                        },{}), scaleX:1, scaleY:1, angle:0, fill:'#cccccc', stroke:'#000000', strokeWidth:1  });
-                        currentTarget.set({
-                            ...initState.info,
-                            scaleX:1,
-                            scaleY:1,
-                            angle:0,
-                            fill:'#cccccc',
-                            stroke:'#000000',
-                            strokeWidth:1
-                        });
-                        canvas.renderAll();
-                    }
-                }}>重置</Button>
+                <span>X轴缩放:</span>
+                <Input value={attrInfo.scaleX} className={style['attr-input']} style={{ width:'120px' }} onChange={e=>{
+                    onChangeAttr({ ...attrInfo, scaleX:e.target.value });
+                    clearTimeout(timer);
+                    timer = setTimeout(()=>{
+                        updateTargetAttr(canvas, currentTarget, 'scaleX', Number(e.target.value))
+                    },500)
+                }} />  
             </div>
+            <div className={style['attr-item-wrapper']}>
+                <span>Y轴缩放:</span>
+                <Input value={attrInfo.scaleY} className={style['attr-input']} style={{ width:'120px' }} onChange={e=>{
+                    onChangeAttr({ ...attrInfo, scaleY:e.target.value });
+                    clearTimeout(timer);
+                    timer = setTimeout(()=>{
+                        updateTargetAttr(canvas, currentTarget, 'scaleY', Number(e.target.value))
+                    },500)
+                }} />  
+            </div>
+            {
+                currentTarget.type !== 'image'
+                ?
+                <div className={style['attr-item-wrapper']}>
+                    <span>旋转角度:</span>
+                    <Input value={attrInfo.angle} className={style['attr-input']} style={{ width:'120px' }} onChange={e=>{
+                        onChangeAttr({ ...attrInfo, angle:e.target.value });
+                        clearTimeout(timer);
+                        timer = setTimeout(()=>{
+                            updateTargetAttr(canvas, currentTarget, 'angle', Number(e.target.value))
+                        },500)
+                    }} />  
+                </div>
+                :
+                null
+            }
+            
         </div>
     )
 }
