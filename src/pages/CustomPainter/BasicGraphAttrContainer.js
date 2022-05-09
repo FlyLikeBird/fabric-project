@@ -19,9 +19,14 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, onChangeAttr
         if ( currentTarget ){
             onChangeAttr(getBasicAttrs(currentTarget));
             if ( currentTarget.flowArr ){
-                let flowObj = currentTarget.flowArr[0];
-                setSelectedId(flowObj.end.objId);
-                setDirec(flowObj.direc);
+                let flowObj = currentTarget.flowArr.filter(i=>i.end.objId !== currentTarget.objId)[0];
+                if ( flowObj ) {
+                    setSelectedId(flowObj.end.objId);
+                    setDirec(flowObj.direc);
+                } else {
+                    setSelectedId('');
+                    setDirec('left');
+                }
             } else {
                 setSelectedId('');
                 setDirec('left');
@@ -37,13 +42,22 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, onChangeAttr
                 <span>连接至:</span>
                 <Select style={{ width:'120px' }} value={selectedId} onChange={value=>{
                     let temp = selectedModels.filter(i=>i.objId === value)[0];
+                    let flowId = null;
+                    if ( currentTarget.flowArr ) {
+                        let result = currentTarget.flowArr.filter(i=>i.end.objId === value )[0];
+                        flowId = result ? result.objId : null ;
+                    }
                     setSelectedId(value);
-                    connectModels(canvas, currentTarget, temp, direc);
+                    connectModels(canvas, currentTarget, temp, direc, flowId);
                 }}>
                     {
+                        selectedModels.length 
+                        ?
                         selectedModels.map((obj)=>(
                             <Option key={obj.objId} value={obj.objId}>{ obj.childNode.text }</Option>
                         ))
+                        :
+                        <div>没有可连接的模型</div>
                     }
                 </Select>
             </div>
@@ -52,8 +66,13 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, onChangeAttr
                 <Select style={{ width:'120px' }} value={direc} onChange={value=>{
                     setDirec(value);
                     let temp = selectedModels.filter(i=>i.objId === selectedId)[0];
+                    let flowId = null;
                     if ( temp ){
-                        connectModels(canvas, currentTarget, temp, value);
+                        if ( currentTarget.flowArr ) {
+                            let result = currentTarget.flowArr.filter(i=>i.end.objId === selectedId )[0];
+                            flowId = result ? result.objId : null;
+                        }
+                        connectModels(canvas, currentTarget, temp, value, flowId);
                     } else {
                         message.info('请选择要连接的模型对象');
                     }
@@ -185,7 +204,13 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, onChangeAttr
                 :
                 null
             }
-            
+            <Button type='primary' danger onClick={()=>{
+                if ( currentTarget.flowArr ) {
+                    let flowObj = currentTarget.flowArr[0];
+                    flowObj.set({ stroke:'#ff0000'});
+                    canvas.renderAll();
+                }
+            }}>模拟告警信息</Button>
         </div>
     )
 }

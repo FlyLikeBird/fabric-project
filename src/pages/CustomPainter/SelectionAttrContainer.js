@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Input, Radio } from 'antd';
+import { Button, Input, Select, message, Radio } from 'antd';
 import { AlignLeftOutlined, AlignCenterOutlined, AlignRightOutlined, ColumnWidthOutlined, ColumnHeightOutlined } from '@ant-design/icons';
 import { fabric } from 'fabric';
-import { updateTargetAttr, getBasicAttrs, basicGraphs } from './util';
+import { connectModels } from './util';
 import style from './index.css';
-
+const { Option } = Select;
 let timer = null;
+let posList = [{ title:'左侧', key:'left'}, { title:'顶部', key:'top'}, { title:'右侧', key:'right'}, { title:'底部', key:'bottom' }];
 
-function GroupAttrContainer({ canvas, currentTarget, attrInfo, onChangeAttr }){
+function SelectionAttrContainer({ canvas, currentTarget, attrInfo, onChangeAttr }){
+    let [selectedId, setSelectedId] = useState('');
+    let [direc, setDirec] = useState('left');
     let [horizonAlign, setHorizonAlign] = useState('');
     let [verticalAlign, setVerticalAlign] = useState('');
     useEffect(()=>{
@@ -16,9 +19,55 @@ function GroupAttrContainer({ canvas, currentTarget, attrInfo, onChangeAttr }){
         }
     },[currentTarget]);
     // console.log(basicGraphs.filter(i=>i.type.toLowerCase() === currentTarget.type)[0].attrs);
-    console.log(currentTarget);
+    let childNodes = currentTarget._objects.filter( i => i.type !== 'text' && i.type !== 'polyline' );
+    let childNodeIds = childNodes.map(i=>i.objId);
+    let selectedModels = canvas.getObjects().filter(i=> i.type !== 'text' && i.type !== 'polyline' && !childNodeIds.includes(i.objId));
     return (
         <div className={style['attr-container']}>
+            <div className={style['attr-item-wrapper']}>
+                <span>连接至:</span>
+                <Select style={{ width:'120px' }} value={selectedId} onChange={value=>{
+                    let temp = selectedModels.filter(i=>i.objId === value)[0];
+                    setSelectedId(value);
+                    childNodes.forEach(obj=>{
+                        let flowId = null;
+                        if ( obj.flowArr ) {
+                            let result = obj.flowArr.filter(i=>i.end.objId === value )[0];
+                            flowId = result ? result.objId : null ;
+                        }
+                        connectModels(canvas, obj, temp, direc, flowId);
+                    })
+                }}>
+                    {
+                        selectedModels.map((obj)=>(
+                            <Option key={obj.objId} value={obj.objId}>{ obj.childNode.text }</Option>
+                        ))
+                    }
+                </Select>
+            </div>
+            <div className={style['attr-item-wrapper']}>
+                <span>连接方向:</span>
+                <Select style={{ width:'120px' }} value={direc} onChange={value=>{
+                    setDirec(value);
+                    let temp = selectedModels.filter(i=>i.objId === selectedId)[0];
+                    let flowId = null;
+                    if ( temp ){
+                        if ( currentTarget.flowArr ) {
+                            let result = currentTarget.flowArr.filter(i=>i.end.objId === selectedId )[0];
+                            flowId = result ? result.objId : null;
+                        }
+                        connectModels(canvas, currentTarget, temp, value, flowId);
+                    } else {
+                        message.info('请选择要连接的模型对象');
+                    }
+                }}>
+                    {
+                        posList.map((item)=>(
+                            <Option key={item.key} value={item.key}>{ item.title }</Option>
+                        ))
+                    }
+                </Select>
+            </div>
             <div className={style['attr-item-wrapper']}>
                 <span>水平方向:</span>
                 <Radio.Group onChange={e=>{
@@ -127,5 +176,5 @@ function areEqual(prevProps, nextProps){
         return true;
     }
 }
-export default React.memo(GroupAttrContainer, areEqual);
+export default React.memo(SelectionAttrContainer, areEqual);
 

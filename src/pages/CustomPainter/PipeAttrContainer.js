@@ -14,10 +14,12 @@ function PipeAttrContainer({ canvas, currentTarget }){
     let [flowColor, setFlowColor] = useState(currentTarget.stroke);
     useEffect(()=>{
         if ( currentTarget ){
-            // onChangeAttr(getBasicAttrs(currentTarget))
+            setPipeWidth(currentTarget.pipePath ? currentTarget.pipePath.strokeWidth : 0);
+            setPipeColor(currentTarget.pipePath ? currentTarget.pipePath.stroke : '#000000');
+            setFlowWidth(currentTarget.strokeWidth);
+            setFlowColor(currentTarget.stroke);
         }
     },[currentTarget]);
-    // console.log(basicGraphs.filter(i=>i.type.toLowerCase() === currentTarget.type)[0].attrs);
     return (
         <div className={style['attr-container']}>
             <div className={style['attr-item-wrapper']}>

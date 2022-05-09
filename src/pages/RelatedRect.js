@@ -9,6 +9,7 @@ let isPainting = false;
 let polyLine = null;
 let handleEdit = null;
 let canvas = null;
+let index = 0;
 function Container(){
     useEffect(()=>{
         canvas = new fabric.Canvas('my-canvas',{
@@ -24,9 +25,9 @@ function Container(){
                 }
             }
         }
-        
+        let colors = ['red', 'green', 'blue'];
         handleEdit = ()=>{
-            var textObj = new fabric.Text('hello world', { fontSize:14, selected:false });
+            var textObj = new fabric.Text('hello world' + index, { fontSize:14, selected:false });
             console.log(textObj);
             textObj.set({
                 left:300 - textObj.width/2,
@@ -35,7 +36,7 @@ function Container(){
             var rect = new fabric.Rect({
                 left:300,
                 top:300,
-                fill:'#ccc',
+                fill:colors[index],
                 width:200,
                 height:100,
                 originX:'center',
@@ -46,6 +47,7 @@ function Container(){
             canvas.add(textObj);
 
             wrapperEvents(rect);
+            index++;
         }
         
         
@@ -56,6 +58,14 @@ function Container(){
                 <Radio.Group>
                     <Radio.Button><ToTopOutlined onClick={()=>{ isPainting = true }} /></Radio.Button>
                     <Radio.Button onClick={()=>handleEdit()}>添加矩形</Radio.Button>
+                    <Radio.Button onClick={()=>{
+                        console.log(canvas.getObjects());
+                        let bottomObj = canvas.getObjects()[0];
+                        console.log(bottomObj);
+                        bottomObj.bringToFront();
+                        console.log(canvas.getObjects());
+                        // canvas.bringToFront(bottomObj);
+                    }}>切换层级</Radio.Button>
                 </Radio.Group>
             </div>
             <canvas id='my-canvas' width='1000px' height='600px' style={{ border:'1px solid #000'}}>container</canvas>
