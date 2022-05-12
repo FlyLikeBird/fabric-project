@@ -3,7 +3,7 @@ import img2 from '../../../public/2.png';
 import img3 from '../../../public/3.png';
 import img4 from '../../../public/4.png';
 
-let machList = [
+let imgList = [
     { key:'mach1', type:'Image', title:'空压机1', path:img1, attrs:[{ attrKey:'width', attrName:'模型宽度', attrValue:0 }, { attrKey:'height', attrName:'模型高度', attrValue:0 }] },
     { key:'mach2', type:'Image', title:'空压机2', path:img2, attrs:[{ attrKey:'width', attrName:'模型宽度', attrValue:0 }, { attrKey:'height', attrName:'模型高度', attrValue:0 }] },
     { key:'mach3', type:'Image', title:'空压机3', path:img3, attrs:[{ attrKey:'width', attrName:'模型宽度', attrValue:0 }, { attrKey:'height', attrName:'模型高度', attrValue:0 }] },
@@ -17,9 +17,20 @@ export let basicGraphs = [
     { key:'Circle', type:'Circle', title:'圆形', width:100, height:100, attrs:[{ attrKey:'radius', attrName:'半径', attrValue:50 }] },
     { key:'Ellipse', type:'Ellipse', title:'椭圆形', width:240, height:160, attrs:[{ attrKey:'rx', attrName:'横向轴', attrValue:120}, { attrKey:'ry', attrName:'纵向轴', attrValue:80 }]},
     { key:'Triangle', type:'Triangle', title:'三角形', width:200, height:150, attrs:[{ attrKey:'width', attrName:'宽度', attrValue:200 }, { attrKey:'height', attrName:'高度', attrValue:150 }]},
-    ...machList
+    ...imgList
 ];
-
+export let initMachList = [];
+for ( let i=0;i<10;i++ ){
+    initMachList.push({ 
+        title:`测试电表${i+1}`, 
+        key:i+1, 
+        subs:[ 
+            { title:'电压', key:'u', value:10 + i * 10, unit:'V'}, 
+            { title:'电流', key:'ele', value:10 + i * 10, unit:'A'}, 
+            { title:'功率', key:'p', value:10 + i* 10, unit:'kw'}
+        ]
+    })
+}
 let pathObj = null;
 let currentIndex = 1;
 let objId = 1;
@@ -28,7 +39,7 @@ export function getId(){
     return ++objId;
 }
 
-export function wrapperEvents(obj){
+export function wrapperEvents(obj, machList){
     function handleTransform({ e, pointer, transform }){
         let { target } = transform;
         let boundingRect = target.getBoundingRect();
@@ -38,10 +49,25 @@ export function wrapperEvents(obj){
                 top:boundingRect.top + boundingRect.height + 10 
             })
         }
+        // 如果有绑定信息框对象，则对象变换时更新信息框的状态
+    }
+    function handleMouseOver({ e, target }){
+        if ( target.machId ) {
+            let info = machList.filter(i=>i.key === target.machId)[0];
+            createTooltip(target, info);
+        }
+    }
+    function handleMouseOut({ e, target }){
+        if ( target.machId ) {
+            let infoGroup = target.canvas.getObjects().filter(i=>i.type === 'group' && i.objId === target.objId )[0];
+            target.canvas.remove(infoGroup);
+        }
     }
     obj.on('moving', handleTransform);
     obj.on('scaling', handleTransform);
     obj.on('rotating', handleTransform);
+    obj.on('mouseover', handleMouseOver);
+    obj.on('mouseout', handleMouseOut);
 }
 export function initExports(obj){
     // 扩展对象自身的导出方法
@@ -433,6 +459,40 @@ export function getBasicAttrs(target){
     return { width, height, text, fontSize, fontColor, radius:Math.round(radius), rx:Math.round(rx), ry:Math.round(ry), scaleX:scaleX.toFixed(1), scaleY:scaleY.toFixed(1), angle:angle.toFixed(1), fill, stroke, strokeWidth };
 }
 
+// 创建信息框对象
+let infoWidth = 160, infoHeight = 70, infoPadding = 20;
+export function createTooltip(target, info){
+    let infoPos;
+    let boundingRect = target.getBoundingRect();
+    let topPos = boundingRect.top, 
+        leftPos = boundingRect.left;  
+    if ( topPos <= infoHeight ) {
+        // 默认渲染在对象底部
+        infoPos = { left:leftPos + boundingRect.width / 2 - infoWidth / 2, top:boundingRect.top + boundingRect.height + infoPadding };
+    } else if ( leftPos <= infoWidth ) {
+        // 渲染在对象右侧
+        infoPos = { left:leftPos + boundingRect.width + infoPadding, top:boundingRect.top + boundingRect.height / 2 - infoHeight/2 };
+    } else if ( leftPos > infoWidth ) {
+        // 渲染在对象左侧
+        infoPos = { left:leftPos - infoWidth - infoPadding, top:boundingRect.top + boundingRect.height/2 - infoHeight/2 };
+    } 
+    let infoBg = new fabric.Rect({
+        fill:'#cccccc',
+        stroke:'#000000',
+        strokeWidth:1,
+        width:infoWidth,
+        height:infoHeight,
+    });
+    let str1 = '', str2 = '';
+    info.subs.forEach(item=>{
+        str1 += item.title + '\n';
+        str2 += item.value + ' ' + item.unit + '\n'; 
+    });
+    let textObj1 = new fabric.Text(str1, { fontSize:14, lineHeight:1.5, left:8, top:4 });
+    let textObj2 = new fabric.Text(str2, { fontSize:14, lineHeight:1.5, originX:'right', top:4, left:152, textAlign:'right' });
+    let infoGroup = new fabric.Group([infoBg, textObj1, textObj2], { ...infoPos, objId:target.objId });
+    target.canvas.add(infoGroup);
+}
 // 保存画布状态
 let json = '';
 export function savePaint(canvas){

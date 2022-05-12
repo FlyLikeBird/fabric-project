@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Radio, Button } from 'antd';
 import { ToTopOutlined, CopyOutlined, HighlightOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import { fabric } from 'fabric';
-import { initGraphAttr, basicGraphs, getBasicAttrs, getId, load, initExports, savePaint, cloneModel, wrapperEvents, connectModels, delTarget } from './util';
+import { initGraphAttr, initMachList, basicGraphs, getBasicAttrs, getId, load, initExports, savePaint, cloneModel, wrapperEvents, connectModels, delTarget } from './util';
 import BasicGraphAttrContainer from './BasicGraphAttrContainer';
 import SelectionAttrContainer from './SelectionAttrContainer';
 import PipeAttrContainer from './PipeAttrContainer';
@@ -13,7 +13,13 @@ let canvas = null;
 function CustomPainter(){
     let [currentTarget, setCurrentTarget] = useState(null);
     let [attrInfo, setAttrInfo] = useState(initGraphAttr);
+    let [selectedModels, setSelectedModels] = useState([]);
+    let [machList, setMachList] = useState(initMachList);
     let [paintList, setPaintList] = useState([]);
+    let currentTargetRef = useRef(null);
+    useEffect(()=>{
+        currentTargetRef.current = currentTarget;
+    },[currentTarget])
     useEffect(()=>{
         canvas = new fabric.Canvas('my-canvas',{
             backgroundColor:'#fefefe',
@@ -50,9 +56,13 @@ function CustomPainter(){
                     });
                     canvas.add(textObj);
                     canvas.add(oImg);
-                    wrapperEvents(oImg);
+                    wrapperEvents(oImg, machList);
                     initExports(oImg);
                     initExports(textObj);
+                    if ( currentTargetRef.current && currentTargetRef.current.type ) {
+                        let temp = canvas.getObjects().filter(i=> i.type !== 'text' && i.type !== 'polyline' && i.objId !== currentTargetRef.current.objId);
+                        setSelectedModels(temp);
+                    }
                 })
             } else {
                 // 基础图形区,
@@ -79,9 +89,14 @@ function CustomPainter(){
                 });
                 canvas.add(textObj);
                 canvas.add(graphObj);
-                wrapperEvents(graphObj);
+                wrapperEvents(graphObj, machList);
                 initExports(graphObj);
                 initExports(textObj);
+                // 当新模型拖入绘图区，更新可连接对象列表
+                if ( currentTargetRef.current && currentTargetRef.current.type ) {
+                    let temp = canvas.getObjects().filter(i=> i.type !== 'text' && i.type !== 'polyline' && i.type !== 'group' && i.objId !== currentTargetRef.current.objId);
+                    setSelectedModels(temp);
+                }
             } 
         });
         // 监听对象的属性，如有变动更新右侧的属性面板
@@ -102,15 +117,20 @@ function CustomPainter(){
             let { e, target, pointer } = option;  
             if ( target ){
                 if ( target.type === 'text' ) return;
-                setCurrentTarget(target);
+                setCurrentTarget(target);             
+                let temp = canvas.getObjects().filter(i=> i.type !== 'text' && i.type !== 'polyline' && i.type !== 'group' && i.objId !== target.objId);
+                setSelectedModels(temp);
                 // if ( e.altKey ){
                 //     // 按住ALT键拖动复制选中的对象
                 //     cloneModel(canvas, target, pointer);
                 // } else {
                     
                 // }
-            }         
+            } else {
+                setCurrentTarget(target);
+            }        
         });
+
         return ()=>{
         }  
     },[]);
@@ -153,7 +173,14 @@ function CustomPainter(){
                     :
                     currentTarget
                     ?
-                    <BasicGraphAttrContainer canvas={canvas} currentTarget={currentTarget} attrInfo={attrInfo} onChangeAttr={(option)=>setAttrInfo(option)} />
+                    <BasicGraphAttrContainer 
+                        canvas={canvas} 
+                        currentTarget={currentTarget} 
+                        attrInfo={attrInfo} 
+                        selectedModels={selectedModels}
+                        machList={machList}
+                        onChangeAttr={(option)=>setAttrInfo(option)} 
+                    />
                     :
                     null
                 }

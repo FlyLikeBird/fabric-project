@@ -22,7 +22,7 @@
 }
 /* 属性区样式 */
 .attr-container {
-    width:240px;
+    width:280px;
     background-color:#f3f3f3;
 }
 
@@ -32,6 +32,6 @@
 }
 
 .attr-container .attr-item-wrapper .attr-input {
-    margin-left:4px;
+    margin-left:6px;
 }
 
