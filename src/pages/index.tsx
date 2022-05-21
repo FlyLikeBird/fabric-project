@@ -3,8 +3,6 @@ import Container from './CustomPainter';
 
 export default function IndexPage() {
   return (
-    <div>
-        <Container />
-    </div>
+    <Container />
   );
 }

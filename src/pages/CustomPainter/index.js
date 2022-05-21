@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Radio, Button } from 'antd';
-import { ToTopOutlined, CopyOutlined, HighlightOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
+import { ToTopOutlined, ClearOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import { fabric } from 'fabric';
-import { initGraphAttr, initMachList, basicGraphs, getBasicAttrs, getId, load, initExports, savePaint, cloneModel, wrapperEvents, connectModels, delTarget } from './util';
+import { initGraphAttr, initMachList, graphs, graphTypes, basicGraphs, createGrid, airMachList, getBasicAttrs, getId, load, initExports, savePaint, cloneModel, wrapperEvents, connectModels, delTarget } from './util';
 import BasicGraphAttrContainer from './BasicGraphAttrContainer';
 import SelectionAttrContainer from './SelectionAttrContainer';
 import PipeAttrContainer from './PipeAttrContainer';
 import style from './index.css';
-
+import bgImg from '../../../public/canvas_bg.png';
 let canvas = null;
 
 function CustomPainter(){
@@ -17,18 +17,24 @@ function CustomPainter(){
     let [machList, setMachList] = useState(initMachList);
     let [paintList, setPaintList] = useState([]);
     let currentTargetRef = useRef(null);
+    let containerRef = useRef(null);
     useEffect(()=>{
         currentTargetRef.current = currentTarget;
     },[currentTarget])
     useEffect(()=>{
+        let container = containerRef.current;
         canvas = new fabric.Canvas('my-canvas',{
-            backgroundColor:'#fefefe',
+            backgroundColor:'#181e25',
             selection:true,
+            width:container.offsetWidth - 560,
+            height:container.offsetHeight - 34
         });
+        // canvas.setBackgroundImage(bgImg, canvas.renderAll.bind(canvas))
+        // createGrid(canvas);
         fabric.Object.prototype.transparentCorners = false;
         document.addEventListener('dragstart',e=>{
-            if ( e.target.className === style['btn'] ) {
-                let graphObj = basicGraphs.filter(i=>i.key === e.target.getAttribute('data-graph-type'))[0];      
+            if ( e.target ){
+                let graphObj = graphs.filter(i=>i.key === e.target.getAttribute('data-graph-key'))[0];      
                 e.dataTransfer.setData('text/plain', JSON.stringify(graphObj));
             }
         })
@@ -38,7 +44,7 @@ function CustomPainter(){
                 // 模型区
                 fabric.Image.fromURL(data.path, oImg=>{
                     let id = getId();
-                    let textObj = new fabric.Text(id + '-' + data.title, { fontSize:14 } );
+                    let textObj = new fabric.Text(id + '-' + data.title, { fontSize:14, fill:'#ffffff' } );
                     textObj.objId = id;
                     textObj.set({
                         top:e.offsetY + oImg.height / 2 + 10,
@@ -60,14 +66,23 @@ function CustomPainter(){
                     initExports(oImg);
                     initExports(textObj);
                     if ( currentTargetRef.current && currentTargetRef.current.type ) {
-                        let temp = canvas.getObjects().filter(i=> i.type !== 'text' && i.type !== 'polyline' && i.objId !== currentTargetRef.current.objId);
-                        setSelectedModels(temp);
+                        if ( currentTargetRef.current.type === 'activeSelection' ) {
+                            // 当选取对象为集合时
+                            let childNodes = currentTargetRef.current._objects.filter( i => graphTypes.includes(i.type) );
+                            let childNodeIds = childNodes.map(i=>i.objId);
+                            let selectedModels = canvas.getObjects().filter(i=> graphTypes.includes(i.type)).filter(i=>!childNodeIds.includes(i.objId));
+                            setSelectedModels(selectedModels);
+                        } else {
+                            // 当选取对象为单个对象
+                            let temp = canvas.getObjects().filter(i=>graphTypes.includes(i.type)).filter(i=>i.objId !== currentTargetRef.current.objId);                            
+                            setSelectedModels(temp);
+                        }  
                     }
                 })
             } else {
                 // 基础图形区,
                 let id = getId();
-                let textObj = new fabric.Text(id + '-' + data.title, { fontSize:14 })
+                let textObj = new fabric.Text(id + '-' + data.title, { fontSize:14, fill:'#ffffff' })
                 textObj.objId = id;
                 textObj.set({   
                     top:e.offsetY + data.height / 2 + 10,
@@ -94,8 +109,17 @@ function CustomPainter(){
                 initExports(textObj);
                 // 当新模型拖入绘图区，更新可连接对象列表
                 if ( currentTargetRef.current && currentTargetRef.current.type ) {
-                    let temp = canvas.getObjects().filter(i=> i.type !== 'text' && i.type !== 'polyline' && i.type !== 'group' && i.objId !== currentTargetRef.current.objId);
-                    setSelectedModels(temp);
+                    if ( currentTargetRef.current.type === 'activeSelection' ) {
+                        // 当选取对象为集合时
+                        let childNodes = currentTargetRef.current._objects.filter( i => graphTypes.includes(i.type) );
+                        let childNodeIds = childNodes.map(i=>i.objId);
+                        let selectedModels = canvas.getObjects().filter(i=> graphTypes.includes(i.type)).filter(i=>!childNodeIds.includes(i.objId));
+                        setSelectedModels(selectedModels);
+                    } else {
+                        // 当选取对象为单个对象
+                        let temp = canvas.getObjects().filter(i=>graphTypes.includes(i.type)).filter(i=>i.objId !== currentTargetRef.current.objId);                            
+                        setSelectedModels(temp);
+                    }  
                 }
             } 
         });
@@ -111,61 +135,104 @@ function CustomPainter(){
         canvas.on('selection:created',({ selected })=>{
             let selection = canvas.getActiveObject();
             selection.lockRotation = true;
+            if ( selection.type === 'activeSelection' && selection._objects.length ) {
+                let childNodes = selection._objects.filter( i => graphTypes.includes(i.type) );
+                let childNodeIds = childNodes.map(i=>i.objId);
+                let selectedModels = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && !childNodeIds.includes(i.objId));
+                setSelectedModels(selectedModels);
+            }    
             setCurrentTarget(selection);
         });       
         canvas.on('mouse:down',function(option){
-            let { e, target, pointer } = option;  
-            if ( target ){
-                if ( target.type === 'text' ) return;
-                setCurrentTarget(target);             
-                let temp = canvas.getObjects().filter(i=> i.type !== 'text' && i.type !== 'polyline' && i.type !== 'group' && i.objId !== target.objId);
-                setSelectedModels(temp);
-                // if ( e.altKey ){
-                //     // 按住ALT键拖动复制选中的对象
-                //     cloneModel(canvas, target, pointer);
-                // } else {
-                    
-                // }
-            } else {
-                setCurrentTarget(target);
-            }        
+            let { e, target, pointer } = option; 
+            if ( target && target.type !== 'text' && target.type !== 'line' ){
+                if ( target.type !== 'polyline' ) {
+                    target.lockMovementX = false;
+                    target.lockMovementY = false;
+                }
+                if ( e.altKey ){
+                    // 按住ALT键拖动复制选中的对象，只能复制模型对象
+                    if ( target.type !== 'text' && target.type !== 'polyline' ) {
+                        cloneModel(canvas, target, pointer, obj=>setCurrentTarget(obj), (arr)=>setSelectedModels(arr));
+                    }
+                } else {
+                    let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.objId !== target.objId);
+                    setSelectedModels(temp);
+                    setCurrentTarget(target);                          
+                }
+                
+            }      
         });
 
         return ()=>{
         }  
     },[]);
     return (
-        <div>
-            <div>
+        
+        <div className={style['main-container']} ref={containerRef}>
+            <div className={style['header-container']}>
                 {/* 操作区 */}
-                <div className={style['btn-group']}>
-                    {/* 基础图形模型 */}
-                    {
-                        basicGraphs.map((item,i)=>(
-                            <span key={i} className={style['btn']} draggable={true} data-graph-type={item.key} style={{ cursor:'grab' }}><CopyOutlined />{ item.title }</span>
-                        ))
-                    }
-                    {/* 外部引入空压机模型 */}
+                <div className={style['btn-group']}>      
                     <span className={style['btn']} onClick={()=>{
                         delTarget(canvas, currentTarget);
-                    }}><DeleteOutlined />删除</span>
+                    }}><DeleteOutlined style={{ marginRight:'4px' }} />删除</span>
+                    <span className={style['btn']} onClick={()=>{
+                        canvas.getObjects().filter(i=>graphTypes.includes(i.type)).forEach(obj=>{
+                            delTarget(canvas, obj);
+                        })
+                    }}><ClearOutlined style={{ marginRight:'4px' }} />清除画布</span>
                     <span className={style['btn']} onClick={()=>{
                         savePaint(canvas, list=>setPaintList(list));
-                    }}><SaveOutlined />保存</span>
+                    }}><SaveOutlined style={{ marginRight:'4px' }} />保存画布</span>
                     <span className={style['btn']} onClick={()=>{
                         load(canvas);
-                    }}>加载</span>
+                    }}>加载资源</span>
                 </div>
             </div>
-            <div className={style['canvas-container']}>
+            <div className={style['content-container']}>
+                {/* 模型导入区 */}
+                <div className={style['model-container']}>
+                    {/* 基础图形区 */}
+                    <div className={style['model-item']}>
+                        <div className={style['model-title']}>基础图形区</div>
+                        <div className={style['model-content']}>
+                            {
+                                basicGraphs.map((item,i)=>(
+                                    <div className={style['item-wrapper']} key={item.key}>
+                                        <div className={style['item-container']}>
+                                            <div className={style['img-container']}><img src={item.path} draggable={true} data-graph-key={item.key} style={{ cursor:'grab' }} /></div>
+                                            <div className={style['item-text']}>{ item.title }</div>
+                                        </div>
+                                    </div>
+                                ))
+                            }
+                        </div>
+                    </div>
+                    {/* 第三方模型区 */}
+                    <div className={style['model-item']}>
+                        <div className={style['model-title']}>空压机模型区</div>
+                        <div className={style['model-content']}>
+                            {
+                                airMachList.map((item,i)=>(
+                                    <div className={style['item-wrapper']} key={item.key}>
+                                        <div className={style['item-container']} >
+                                            <div className={style['img-container']}><img src={item.path} draggable={true} data-graph-key={item.key} style={{ cursor:'grab' }} /></div>
+                                            <div className={style['item-text']}>{ item.title }</div>
+                                        </div>
+                                    </div>
+                                ))
+                            }
+                        </div>
+                    </div>
+                </div>
                 {/* 绘图区 */}
-                <canvas id='my-canvas' width='1000px' height='600px' style={{ border:'1px solid #000'}}>container</canvas>
+                <canvas id='my-canvas'>container</canvas>
                 {/* 属性区 */}
                 
                 {
                     currentTarget && currentTarget.type === 'activeSelection' 
                     ?
-                    <SelectionAttrContainer canvas={canvas} currentTarget={currentTarget}  />
+                    <SelectionAttrContainer canvas={canvas} currentTarget={currentTarget} selectedModels={selectedModels}  />
                     :
                     currentTarget && currentTarget.type === 'polyline' 
                     ?
@@ -187,6 +254,7 @@ function CustomPainter(){
                     
             </div>
         </div>
+       
     )
 }
 

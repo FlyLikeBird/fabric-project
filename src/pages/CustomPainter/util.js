@@ -2,23 +2,28 @@ import img1 from '../../../public/1.png';
 import img2 from '../../../public/2.png';
 import img3 from '../../../public/3.png';
 import img4 from '../../../public/4.png';
-
-let imgList = [
+import rectImg from '../../../public/graph_rect.png';
+import circleImg from '../../../public/graph_circle.png';
+import ellipseImg from '../../../public/graph_ellipse.png';
+import triangleImg from '../../../public/graph_triangle.png';
+export let airMachList = [
     { key:'mach1', type:'Image', title:'空压机1', path:img1, attrs:[{ attrKey:'width', attrName:'模型宽度', attrValue:0 }, { attrKey:'height', attrName:'模型高度', attrValue:0 }] },
     { key:'mach2', type:'Image', title:'空压机2', path:img2, attrs:[{ attrKey:'width', attrName:'模型宽度', attrValue:0 }, { attrKey:'height', attrName:'模型高度', attrValue:0 }] },
     { key:'mach3', type:'Image', title:'空压机3', path:img3, attrs:[{ attrKey:'width', attrName:'模型宽度', attrValue:0 }, { attrKey:'height', attrName:'模型高度', attrValue:0 }] },
     { key:'mach4', type:'Image', title:'空压机4', path:img4, attrs:[{ attrKey:'width', attrName:'模型宽度', attrValue:0 }, { attrKey:'height', attrName:'模型高度', attrValue:0 }] },
 ];
-
-export let initGraphAttr = { text:'', fontSize:14, fontColor:'#000000', width:0, height:0, radius:0, rx:0, ry:0, scaleX:1, scaleY:1, angle:0, fill:'#cccccc', stroke:'#000000', strokeWidth:1 }
 export let basicGraphs = [
     // width,height 描述边界框的范围
-    { key:'Rect', type:'Rect', title:'矩形', width:200, height:150, attrs:[{ attrKey:'width', attrName:'宽度', attrValue:200 }, { attrKey:'height', attrName:'高度', attrValue:150 }]},
-    { key:'Circle', type:'Circle', title:'圆形', width:100, height:100, attrs:[{ attrKey:'radius', attrName:'半径', attrValue:50 }] },
-    { key:'Ellipse', type:'Ellipse', title:'椭圆形', width:240, height:160, attrs:[{ attrKey:'rx', attrName:'横向轴', attrValue:120}, { attrKey:'ry', attrName:'纵向轴', attrValue:80 }]},
-    { key:'Triangle', type:'Triangle', title:'三角形', width:200, height:150, attrs:[{ attrKey:'width', attrName:'宽度', attrValue:200 }, { attrKey:'height', attrName:'高度', attrValue:150 }]},
-    ...imgList
+    { key:'Rect', type:'Rect', title:'矩形', path:rectImg, width:200, height:150, attrs:[{ attrKey:'width', attrName:'宽度', attrValue:200 }, { attrKey:'height', attrName:'高度', attrValue:150 }]},
+    { key:'Circle', type:'Circle', title:'圆形', path:circleImg, width:100, height:100, attrs:[{ attrKey:'radius', attrName:'半径', attrValue:50 }] },
+    { key:'Ellipse', type:'Ellipse', title:'椭圆形', path:ellipseImg, width:240, height:160, attrs:[{ attrKey:'rx', attrName:'横向轴', attrValue:120}, { attrKey:'ry', attrName:'纵向轴', attrValue:80 }]},
+    { key:'Triangle', type:'Triangle', title:'三角形', path:triangleImg, width:200, height:150, attrs:[{ attrKey:'width', attrName:'宽度', attrValue:200 }, { attrKey:'height', attrName:'高度', attrValue:150 }]},
 ];
+export let graphs = [
+    ...basicGraphs,
+    ...airMachList
+];
+export let graphTypes = graphs.map(i=>i.type.toLowerCase());
 export let initMachList = [];
 for ( let i=0;i<10;i++ ){
     initMachList.push({ 
@@ -39,7 +44,7 @@ export function getId(){
     return ++objId;
 }
 
-export function wrapperEvents(obj, machList){
+export function wrapperEvents(obj, machList=[]){
     function handleTransform({ e, pointer, transform }){
         let { target } = transform;
         let boundingRect = target.getBoundingRect();
@@ -52,13 +57,15 @@ export function wrapperEvents(obj, machList){
         // 如果有绑定信息框对象，则对象变换时更新信息框的状态
     }
     function handleMouseOver({ e, target }){
-        if ( target.machId ) {
+        if ( target && target.machId ) {
             let info = machList.filter(i=>i.key === target.machId)[0];
-            createTooltip(target, info);
+            if ( info ){
+                createTooltip(target, info);
+            }
         }
     }
     function handleMouseOut({ e, target }){
-        if ( target.machId ) {
+        if ( target && target.machId ) {
             let infoGroup = target.canvas.getObjects().filter(i=>i.type === 'group' && i.objId === target.objId )[0];
             target.canvas.remove(infoGroup);
         }
@@ -171,6 +178,10 @@ function _connectFromSourceToTarget(canvas, sourceObj, targetObj, direc, flowId)
     flowPath.start = sourceObj;
     flowPath.end = targetObj;
     flowPath.strokeLength = strokeLength;
+    flowPath.lockMovementX = true;
+    flowPath.lockMovementY = true;
+    pipePath.lockMovementX = true;
+    pipePath.lockMovementY = true;
     initExports(pipePath);
     initExports(flowPath);
     startMotion(canvas, flowPath);
@@ -300,37 +311,53 @@ function startMotion(canvas, flowPath){
 // 复制图形对象
 let activeObj = null;
 
-export function cloneModel(canvas, target, pointer){
+export function cloneModel(canvas, target, pointer, onChangeTarget, onCloneFinish){
     // canvas.discardActiveObject();
     target.lockMovementX = true;
     target.lockMovementY = true;    
     if ( target.type === 'activeSelection' ) {
         // clone方法是异步过程，后续操作必须放在回调函数
-        let allPromise = [];
-        target.forEachObject(obj=>{
-            allPromise.push(new Promise((resolve, reject)=>{
-                obj.clone((clonedObj)=>{
-                    canvas.add(clonedObj);
-                    resolve(clonedObj);
-                });
-            }))          
-        });
-        Promise.all(allPromise).then(([...children])=>{
-            activeObj = new fabric.ActiveSelection(children, { left:target.left, top:target.top });
-            activeObj.canvas = canvas;     
-            activeObj.opacity = 0.5;         
-            activeObj.initLeft = activeObj.left;
-            activeObj.initTop = activeObj.top;
-            canvas.setActiveObject(activeObj);
-        })  
+        // let allPromise = [];
+        // target.forEachObject(obj=>{
+        //     allPromise.push(new Promise((resolve, reject)=>{
+        //         obj.clone((clonedObj)=>{
+        //             canvas.add(clonedObj);
+        //             resolve(clonedObj);
+        //         });
+        //     }))          
+        // });
+        // Promise.all(allPromise).then(([...children])=>{
+        //     activeObj = new fabric.ActiveSelection(children, { left:target.left, top:target.top });
+        //     activeObj.canvas = canvas;     
+        //     activeObj.opacity = 0.5;         
+        //     activeObj.initLeft = activeObj.left;
+        //     activeObj.initTop = activeObj.top;
+        //     canvas.setActiveObject(activeObj);
+        // })  
     } else {
         target.clone((clonedObj)=>{
-            activeObj = clonedObj;
-            activeObj.opacity = 0.5;
-            activeObj.initLeft = activeObj.left;
-            activeObj.initTop = activeObj.top;
-            canvas.add(activeObj);
-            canvas.setActiveObject(activeObj);
+            let newId = getId();
+            let textObj = canvas.getObjects().filter(i=>i.type === 'text' && i.objId === clonedObj.objId )[0];
+            textObj.clone((clonedText)=>{
+                activeObj = clonedObj;
+                activeObj.lockRotation = true;
+                activeObj.opacity = 0.5;
+                clonedText.opacity = 0.5;
+                activeObj.flowArr = null;
+                activeObj.machId = null;
+                activeObj.objId = newId;
+                clonedText.objId = newId;
+                clonedText.text = clonedText.text + '-副本'; 
+                activeObj.initLeft = activeObj.left;
+                activeObj.initTop = activeObj.top;
+                activeObj.childNode = clonedText;
+                canvas.add(clonedText);
+                canvas.add(activeObj);
+                initExports(activeObj);
+                initExports(clonedText);
+                canvas.setActiveObject(activeObj);
+                if ( onChangeTarget ) onChangeTarget(activeObj);
+            })   
         });
     };
     function handleMouseMove({ e }){
@@ -341,13 +368,25 @@ export function cloneModel(canvas, target, pointer){
                 left:activeObj.initLeft + offsetX,
                 top:activeObj.initTop + offsetY,
             });
-            canvas.renderAll(); 
+            if ( activeObj.childNode ){
+                activeObj.childNode.set({
+                    left:activeObj.initLeft + offsetX - activeObj.childNode.width / 2,
+                    top:activeObj.initTop + offsetY + activeObj.height / 2 + 10
+                })
+            }
+            canvas.renderAll();
         }
     }
     function handleMouseUp(e){
         if ( activeObj ){
             activeObj.opacity = 1;
+            if ( activeObj.childNode ){
+                activeObj.childNode.opacity = 1;
+            }
+            wrapperEvents(activeObj);
             canvas.renderAll();
+            let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.objId !== activeObj.objId);
+            if ( onCloneFinish ) onCloneFinish(temp);
         }
         activeObj = null;
         canvas.off('mouse:move', handleMouseMove);
@@ -418,9 +457,15 @@ function _delSingleTarget(canvas, target){
     if ( target.flowArr ) {
         // 清除挂载在模型上的所有关联管道
         target.flowArr.forEach(obj=>{
+            if ( obj.start && obj.start.flowArr ) {
+                obj.start.flowArr = obj.start.flowArr.filter(i=>i.objId !== obj.objId );
+            }
+            if ( obj.end && obj.end.flowArr ){
+                obj.end.flowArr = obj.end.flowArr.filter(i=>i.objId !== obj.objId );
+            }
             canvas.remove(obj.pipePath);
             canvas.remove(obj);
-        })
+        });
         target.flowArr = null;
     } 
     canvas.remove(target);
@@ -438,6 +483,7 @@ export function delTarget(canvas, currentTarget){
         canvas.renderAll();
     }
 }
+export let initGraphAttr = { text:'', fontSize:14, fontColor:'#000000', width:0, height:0, radius:0, rx:0, ry:0, scaleX:1, scaleY:1, angle:0, fill:'#cccccc', stroke:'#000000', strokeWidth:1 }
 export function getBasicAttrs(target){
     let textObj = target.childNode, text = '', fontSize = 14, fontColor = '#000000';
     let width = target.get('width');
@@ -536,7 +582,32 @@ export function load(canvas){
             }
             obj.flowArr = obj.flowArr && obj.flowArr.length ? obj.flowArr.map(i=>pipeObjs.filter(j=>j.objId === i && j.start )[0]) : null            
         });
-        console.log(canvas);
     });
-   
+}
+
+export function createGrid(canvas){
+    let options = {
+        distance: 20,
+        width: canvas.width,
+        height: canvas.height,
+        param: {
+            stroke: 'rgba(255, 255, 255, 0.1)',
+            strokeWidth: 1,
+            selectable: false,
+            hasControls:false,
+            excludeFromExport:true
+        }
+    };
+	let gridLen = ( options.width > options.height ? options.width : options.height) / options.distance;
+    for (var i = 0; i < gridLen; i++) {
+        var distance   = i * options.distance;
+        var horizontal = new fabric.Line([ distance, 0, distance, options.height], options.param);
+        var vertical   = new fabric.Line([ 0, distance, options.width, distance], options.param);
+        canvas.add(horizontal);
+        canvas.add(vertical);
+        if(i%5 === 0){
+          horizontal.set({stroke: 'rgba(255, 255, 255, 0.2)'});
+          vertical.set({stroke: 'rgba(255, 255, 255, 0.2)'});
+        };
+    }
 }

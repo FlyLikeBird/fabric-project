@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Input, Select, message } from 'antd';
 import { fabric } from 'fabric';
-import { updateTargetAttr, updateTextAttr, getBasicAttrs, createTooltip, basicGraphs, connectModels } from './util';
+import { updateTargetAttr, updateTextAttr, getBasicAttrs,  graphs, graphTypes, connectModels } from './util';
 import style from './index.css';
 const { Option } = Select;
 let timer = null;
@@ -39,8 +39,9 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, selectedMode
             }
         }
     },[currentTarget]);
-    let selectedMachs = canvas.getObjects().filter(i=>i.type !== 'polyline' && i.type !== 'text' && i.type !== 'group' && i.objId !== currentTarget.objId ).map(i=>i.machId);
     
+    let selectedMachs = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.objId !== currentTarget.objId ).map(i=>i.machId);
+   
     return (
         <div className={style['attr-container']}>
             {/* 绑定数据源 */}
@@ -74,7 +75,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, selectedMode
             {/* 源对象和目标对象的流向定义 */}
             <div className={style['attr-item-wrapper']}>
                 <span>连接至:</span>
-                <Select style={{ width:'140px' }} value={selectedId} onChange={value=>{
+                <Select  value={selectedId} onChange={value=>{
                     let temp = selectedModels.filter(i=>i.objId === value)[0];
                     let flowId = null;
                     if ( currentTarget.flowArr ) {
@@ -97,7 +98,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, selectedMode
             </div>
             <div className={style['attr-item-wrapper']}>
                 <span>连接方向:</span>
-                <Select style={{ width:'140px' }} value={direc} onChange={value=>{
+                <Select  value={direc} onChange={value=>{
                     setDirec(value);
                     let temp = selectedModels.filter(i=>i.objId === selectedId)[0];
                     let flowId = null;
@@ -120,7 +121,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, selectedMode
             </div>
             <div className={style['attr-item-wrapper']}>
                 <span>模型标题:</span>
-                <Input value={attrInfo.text} className={style['attr-input']} style={{ width:'140px' }} onChange={e=>{
+                <Input value={attrInfo.text} className={style['attr-input']}  onChange={e=>{
                     onChangeAttr({ ...attrInfo, text:e.target.value });
                     clearTimeout(timer);
                     timer = setTimeout(()=>{
@@ -130,7 +131,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, selectedMode
             </div>
             <div className={style['attr-item-wrapper']}>
                 <span>标题大小:</span>
-                <Input value={attrInfo.fontSize} className={style['attr-input']} style={{ width:'140px' }} onChange={e=>{
+                <Input value={attrInfo.fontSize} className={style['attr-input']}  onChange={e=>{
                     onChangeAttr({ ...attrInfo, fontSize:e.target.value });
                     clearTimeout(timer);
                     timer = setTimeout(()=>{
@@ -187,10 +188,10 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, selectedMode
             {
                 currentTarget && currentTarget.type
                 ?           
-                basicGraphs.filter(i=>i.type.toLowerCase() === currentTarget.type )[0].attrs.map(attr=>{
+                graphs.filter(i=>i.type.toLowerCase() === currentTarget.type )[0].attrs.map(attr=>{
                     return (<div className={style['attr-item-wrapper']} key={attr.attrKey}>
                         <span>{ attr.attrName }:</span>
-                        <Input value={attrInfo[attr.attrKey]} className={style['attr-input']} style={{ width:'140px' }} onChange={e=>{
+                        <Input value={attrInfo[attr.attrKey]} className={style['attr-input']}  onChange={e=>{
                             onChangeAttr({ ...attrInfo, [attr.attrKey]:e.target.value });
                             clearTimeout(timer);
                             timer = setTimeout(()=>{
@@ -204,7 +205,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, selectedMode
             }
             <div className={style['attr-item-wrapper']}>
                 <span>X轴缩放:</span>
-                <Input value={attrInfo.scaleX} className={style['attr-input']} style={{ width:'140px' }} onChange={e=>{
+                <Input value={attrInfo.scaleX} className={style['attr-input']}  onChange={e=>{
                     onChangeAttr({ ...attrInfo, scaleX:e.target.value });
                     clearTimeout(timer);
                     timer = setTimeout(()=>{
@@ -214,7 +215,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, selectedMode
             </div>
             <div className={style['attr-item-wrapper']}>
                 <span>Y轴缩放:</span>
-                <Input value={attrInfo.scaleY} className={style['attr-input']} style={{ width:'140px' }} onChange={e=>{
+                <Input value={attrInfo.scaleY} className={style['attr-input']}  onChange={e=>{
                     onChangeAttr({ ...attrInfo, scaleY:e.target.value });
                     clearTimeout(timer);
                     timer = setTimeout(()=>{
@@ -227,7 +228,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, selectedMode
                 ?
                 <div className={style['attr-item-wrapper']}>
                     <span>旋转角度:</span>
-                    <Input value={attrInfo.angle} className={style['attr-input']} style={{ width:'140px' }} onChange={e=>{
+                    <Input value={attrInfo.angle} className={style['attr-input']}  onChange={e=>{
                         onChangeAttr({ ...attrInfo, angle:e.target.value });
                         clearTimeout(timer);
                         timer = setTimeout(()=>{
@@ -238,7 +239,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, selectedMode
                 :
                 null
             }
-            <Button type='primary' danger onClick={()=>{
+            <Button type='primary' style={{ margin:'1rem ' }} danger onClick={()=>{
                 if ( currentTarget.flowArr ) {
                     let flowObj = currentTarget.flowArr[0];
                     flowObj.set({ stroke:'#ff0000'});

@@ -1,13 +1,21 @@
-.title {
-    background: rgb(121, 242, 157);
+html, body {
+    padding:0;
+    margin:0;
+    height:100%;
+    font-size:14px;
 }
-  
+.header-container {
+    height:34px;
+    background-color:#262a2f;
+}
 .btn-group {
-    display:flex;
+    text-align: center;
 }
-
 .btn-group .btn {
-    border:1px solid #d9d9d9;
+    display:inline-block;
+    color:#fff;
+    border-left:1px solid #4e5257;
+    border-right:1px solid #4e5257;
     padding:6px 10px;
     margin-left:-1px;
     cursor: pointer;
@@ -16,22 +24,90 @@
 .btn-group .btn:first-child {
     margin-left:0;
 }
+.main-container {
+    height:100%;
+    background-color:#353a40;
+    overflow: hidden;
+}
 
-.canvas-container {
+
+.content-container {
+    width:100%;
+    height:calc( 100% - 34px);
     display:flex;
+}
+/* 模型导入区样式 */
+.model-container {
+    width:280px;
+    background-color:#353a40;
+    color:#fff;
+    overflow:hidden auto;
+}
+.model-item {
+    padding:0.5rem;
+    border-bottom:1px solid #4e5257;
+}
+
+.model-item .model-title {
+    font-weight:bold;
+}
+
+.model-item .item-wrapper {
+    width:33.3%;
+    display:inline-block;
+    vertical-align: top;
+    height:120px;
+    padding:0 0.5rem 0.5rem 0;
+}
+
+.model-item .item-wrapper .item-container {
+    height:100%;
+    background-color:#41464b;
+    display:flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.model-item .item-wrapper .item-container .img-container {
+    height:60%;
+}
+.model-item .item-wrapper .item-container .img-container > img {
+    height:100%;
+}
+.model-item .item-wrapper .item-container .item-text {
+    font-size:0.8rem;
 }
 /* 属性区样式 */
 .attr-container {
     width:280px;
-    background-color:#f3f3f3;
+    background-color:#353a40;
+    color:rgba(255, 255, 255, 0.85);
 }
 
 .attr-container .attr-item-wrapper {
-    padding:10px;
-    border-bottom:1px solid #d7d7d7;
+    display:flex;
+    align-items: center;
+    justify-content: space-between;
+    padding:0.5rem 1rem;
+    border-bottom:1px solid #4e5257;
 }
-
-.attr-container .attr-item-wrapper .attr-input {
+.attr-container .attr-item-wrapper :global(.ant-input){
+    width:140px;
+    background-color:#353a40;
+    border:1px solid rgba(255, 255, 255, 0.3);
+    color:#fff;
+}
+.attr-container .attr-item-wrapper :global(.ant-select) {
+    width:140px;
+}
+.attr-container .attr-item-wrapper :global(.ant-select) :global(.ant-select-selector) {
+    background-color:#353a40;
+    border:1px solid rgba(255, 255, 255, 0.3);
+    color:#fff;
     margin-left:6px;
 }
+.attr-container .attr-item-wrapper :global(.ant-select) :global(.ant-select-arrow) {
+    color:#fff;
+}
+
 
