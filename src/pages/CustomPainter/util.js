@@ -103,13 +103,15 @@ let direcMaps = {
     'top':{ x:0.5, y:0 },
     'bottom':{ x:0.5, y:1 }
 };
-export function connectModels( canvas, sourceObj, targetObj, direc, flowId ){
-    _connectFromSourceToTarget(canvas, sourceObj, targetObj, direc, flowId);
+export function connectModels( canvas, sourceObj, targetObj, opts, flowId ){
+    _connectFromSourceToTarget(canvas, sourceObj, targetObj, opts, flowId);
 }
 
-function _connectFromSourceToTarget(canvas, sourceObj, targetObj, direc, flowId){
+function _connectFromSourceToTarget(canvas, sourceObj, targetObj, opts, flowId){
     let sourceRect = sourceObj.getBoundingRect();
     let targetRect = targetObj.getBoundingRect();
+    let { entryDirec, entryOffset, outputDirec, outputOffset, pipeWidth, pipeColor, flowWidth, flowColor } = opts;
+    
     if ( sourceObj.group ){
         // 将组合中模型对象的相对定位转换成绝对定位
         let groupRect = sourceObj.group.getBoundingRect();
@@ -118,70 +120,106 @@ function _connectFromSourceToTarget(canvas, sourceObj, targetObj, direc, flowId)
     }
     let points = [];
     let strokeLength = 0;
-    let startPoint = { x:sourceRect.left + sourceRect.width, y:sourceRect.top + sourceRect.height / 2 };
-    let endPoint = { x:targetRect.left + targetRect.width * direcMaps[direc].x, y:targetRect.top + targetRect.height * direcMaps[direc].y };
-    // console.log(startPoint);
-    // console.log(endPoint);
+    let startPoint = 
+        entryDirec === 'left' ? { x:sourceRect.left, y:sourceRect.top + ( entryOffset / 100 * sourceRect.height ) } :
+        entryDirec === 'right' ? { x:sourceRect.left + sourceRect.width, y:sourceRect.top + ( entryOffset / 100 * sourceRect.height ) } :
+        entryDirec === 'top' ? { x:sourceRect.left + ( entryOffset / 100 * sourceRect.width ), y:sourceRect.top } : 
+        entryDirec === 'bottom' ? { x:sourceRect.left + ( entryOffset / 100 * sourceRect.width ), y:sourceRect.top + sourceRect.height } : {};
+    let endPoint = 
+        outputDirec === 'left' ? { x:targetRect.left, y:targetRect.top + ( outputOffset / 100 * targetRect.height ) } :
+        outputDirec === 'right' ? { x:targetRect.left + targetRect.width, y:targetRect.top + ( outputOffset / 100 * targetRect.height ) } :
+        outputDirec === 'top' ? { x:targetRect.left + ( outputOffset / 100 * targetRect.width ), y:targetRect.top } : 
+        outputDirec === 'bottom' ? { x:targetRect.left + ( outputOffset / 100 * targetRect.width ), y:targetRect.top + targetRect.height } : {};
+    
     if ( startPoint.x < endPoint.x ){
-        if ( direc === 'left' ) {
-            strokeLength = endPoint.x - startPoint.x + Math.abs(endPoint.y - startPoint.y);
-            points.push(startPoint, { x:endPoint.x - horizonOffset, y:startPoint.y }, { x:endPoint.x - horizonOffset, y:endPoint.y }, endPoint );
-        } else if ( direc === 'right' ) {
-            strokeLength = endPoint.x - startPoint.x + horizonOffset * 2 + Math.abs(endPoint.y - startPoint.y);
-            points.push(startPoint, { x:endPoint.x + horizonOffset, y:startPoint.y }, { x:endPoint.x + horizonOffset, y:endPoint.y }, endPoint );
-        } else if ( direc === 'top') {
-            strokeLength = Math.abs(endPoint.x - startPoint.x) + Math.abs(endPoint.y - startPoint.y) + horizonOffset * 2;
-            points.push(startPoint, { x:startPoint.x + horizonOffset, y:startPoint.y }, { x:startPoint.x + horizonOffset, y:endPoint.y - horizonOffset }, { x:endPoint.x, y:endPoint.y - horizonOffset }, endPoint);
-        } else if ( direc === 'bottom') {
-            strokeLength = Math.abs(endPoint.x - startPoint.x) + Math.abs(endPoint.y - startPoint.y) + horizonOffset * 2;
-            points.push(startPoint, { x:startPoint.x + horizonOffset, y:startPoint.y }, { x:startPoint.x + horizonOffset, y:endPoint.y + horizonOffset }, { x:endPoint.x, y:endPoint.y + horizonOffset }, endPoint);
+        let isUp = startPoint.y <= endPoint.y ? true : false;
+        if ( outputDirec === 'left' || outputDirec === 'right' ) {
+            // 判断源对象在目标对象的上方还是下方(会影响流向路径的长度)
+            // offsetX指管道在X轴方向的偏移量 , offsetY指管道在Y轴方向的偏移量
+            let outputX = outputDirec === 'left' ? -horizonOffset : horizonOffset;
+            if ( entryDirec === 'left' ) {
+                points.push(startPoint, { x:startPoint.x - horizonOffset, y:startPoint.y }, { x:startPoint.x - horizonOffset, y: ( isUp ? startPoint.y : endPoint.y) - verticalOffset }, { x:endPoint.x + outputX, y: ( isUp ? startPoint.y : endPoint.y ) - verticalOffset}, { x:endPoint.x + outputX, y:endPoint.y }, endPoint );
+                strokeLength = endPoint.x - startPoint.x + 2 * horizonOffset + Math.abs(endPoint.y - startPoint.y) + 2 * verticalOffset;
+            } else if ( entryDirec === 'right' ) {
+                points.push(startPoint, { x: endPoint.x + outputX, y:startPoint.y }, { x:endPoint.x + outputX, y:endPoint.y }, endPoint );
+                strokeLength = endPoint.x - startPoint.x + ( outputDirec === 'right' ? 2 * horizonOffset : 0 ) + Math.abs(endPoint.y - startPoint.y) ;
+            } else if ( entryDirec === 'top' ) {
+                points.push(startPoint, { x:startPoint.x, y: ( isUp ? startPoint.y : endPoint.y ) - verticalOffset }, { x:endPoint.x + outputX, y: ( isUp ? startPoint.y : endPoint.y) - verticalOffset }, { x:endPoint.x + outputX, y:endPoint.y }, endPoint);
+                strokeLength = endPoint.x - startPoint.x + ( outputDirec === 'right' ? 2 * horizonOffset : 0 ) + Math.abs(endPoint.y - startPoint.y) + 2 * verticalOffset ;
+            } else if ( entryDirec === 'bottom' ) {
+                points.push(startPoint, { x:startPoint.x, y:( isUp ? endPoint.y : startPoint.y) + verticalOffset }, { x:endPoint.x + outputX, y:( isUp ? endPoint.y : startPoint.y ) + verticalOffset }, { x:endPoint.x + outputX, y:endPoint.y }, endPoint);
+                strokeLength = endPoint.x - startPoint.x + ( outputDirec === 'right' ? 2 * horizonOffset : 0) + Math.abs(endPoint.y - startPoint.y) + 2 * verticalOffset; 
+            }
+        } else if ( outputDirec === 'top' ) {
+            let outputY = outputDirec === 'top' ? -verticalOffset : verticalOffset;
+            if ( entryDirec === 'left' || entryDirec === 'right' ) {
+                let entryX = entryDirec === 'left' ? -horizonOffset : horizonOffset;
+                points.push(startPoint, { x:startPoint.x + entryX, y:startPoint.y }, { x:startPoint.x + entryX, y : ( isUp ? startPoint.y : endPoint.y ) - verticalOffset }, { x:endPoint.x, y: ( isUp ? startPoint.y : endPoint.y ) - verticalOffset }, endPoint);
+                strokeLength = endPoint.x - startPoint.x + ( entryDirec === 'left' ? 2 * horizonOffset : 0 ) + Math.abs(endPoint.y - startPoint.y) + 2 * verticalOffset;
+            } else if ( entryDirec === 'top' ) {
+                points.push(startPoint, { x:startPoint.x, y:( isUp ? startPoint.y : endPoint.y ) - verticalOffset }, { x:endPoint.x , y:( isUp ? startPoint.y : endPoint.y ) - verticalOffset }, endPoint);
+                strokeLength = endPoint.x - startPoint.x + Math.abs(endPoint.y - startPoint.y) + 2 * verticalOffset;
+            } else if ( entryDirec === 'bottom') {
+                points.push(startPoint, { x:startPoint.x, y:startPoint.y + horizonOffset}, { x:sourceRect.left - horizonOffset, y:startPoint.y + horizonOffset }, { x:sourceRect.left - horizonOffset, y:( isUp ? sourceRect.top : endPoint.y ) - verticalOffset }, { x:endPoint.x, y:( isUp ? sourceRect.top : endPoint.y ) - verticalOffset }, endPoint);
+                strokeLength = endPoint.x - startPoint.x + 2 * ( sourceRect.width /2 + horizonOffset ) + 2 * verticalOffset + ( isUp ? 2 * sourceRect.height : 0 ) + 2 * horizonOffset + Math.abs(endPoint.y - startPoint.y);
+            } 
+        } else if ( outputDirec === 'bottom') {
+            if ( entryDirec === 'left' || entryDirec === 'right' ) {
+                let entryX = entryDirec === 'left' ? -horizonOffset : horizonOffset;
+                points.push(startPoint, { x:startPoint.x + entryX, y:startPoint.y }, { x:startPoint.x + entryX, y:( isUp ? endPoint.y : startPoint.y) + verticalOffset }, { x:endPoint.x, y:( isUp ? endPoint.y : startPoint.y ) + verticalOffset}, endPoint);
+                strokeLength = endPoint.x - startPoint.x + ( entryDirec === 'left' ? 2 * horizonOffset : 0 ) + Math.abs(endPoint.y - startPoint.y) + 2 * verticalOffset;
+            } else if ( entryDirec === 'top') {
+                points.push(startPoint, { x:startPoint.x, y:startPoint.y - horizonOffset }, { x:sourceRect.left + sourceRect.width + horizonOffset, y:startPoint.y - horizonOffset }, { x:sourceRect.left + sourceRect.width + horizonOffset, y:( isUp ? endPoint.y : startPoint.y + sourceRect.height ) + verticalOffset }, { x:endPoint.x, y:( isUp ? endPoint.y : startPoint.y + sourceRect.height ) + verticalOffset}, endPoint);
+                strokeLength = endPoint.x - startPoint.x + Math.abs(endPoint.y - startPoint.y) + 2 * horizonOffset + ( isUp ? 2 * verticalOffset : 2 * ( sourceObj.height + verticalOffset ) ); 
+            } else if ( entryDirec === 'bottom') {
+                points.push(startPoint, { x:startPoint.x, y:( isUp ? endPoint.y : startPoint.y ) + verticalOffset}, { x:endPoint.x, y:( isUp ? endPoint.y : startPoint.y) + verticalOffset }, endPoint);
+                strokeLength = endPoint.x - startPoint.x + Math.abs(endPoint.y - startPoint.y) + 2 * verticalOffset;
+            }
         }
     } else {
-        if ( direc === 'left') {
-            strokeLength = Math.abs(endPoint.x - startPoint.x) + horizonOffset * 4 + Math.abs(endPoint.y - startPoint.y) + verticalOffset * 2;
-            points.push(startPoint, { x:startPoint.x + horizonOffset, y:startPoint.y }, { x:startPoint.x + horizonOffset, y:endPoint.y - verticalOffset }, { x:endPoint.x - horizonOffset, y:endPoint.y - verticalOffset }, { x:endPoint.x - horizonOffset, y:endPoint.y }, endPoint);
-        } else if ( direc === 'right') {
-            strokeLength = Math.abs(endPoint.x - startPoint.x) + horizonOffset * 2 + Math.abs(endPoint.y - startPoint.y) + verticalOffset * 2;
-            points.push(startPoint, { x:startPoint.x + horizonOffset, y:startPoint.y }, { x:startPoint.x + horizonOffset, y:endPoint.y - verticalOffset }, { x:endPoint.x + horizonOffset, y:endPoint.y -verticalOffset }, { x:endPoint.x + horizonOffset, y:endPoint.y }, endPoint);
-        } else if ( direc === 'top') {
-            strokeLength = Math.abs(endPoint.x - startPoint.x) + horizonOffset * 2 + Math.abs(endPoint.y - startPoint.y) + horizonOffset * 2;
-            points.push(startPoint, { x:startPoint.x + horizonOffset, y:startPoint.y }, { x:startPoint.x + horizonOffset, y:endPoint.y - horizonOffset }, { x:endPoint.x, y:endPoint.y - horizonOffset }, endPoint);
-        } else if ( direc === 'bottom') {
-            strokeLength = Math.abs(endPoint.x - startPoint.x) + horizonOffset * 2 + Math.abs(endPoint.y - startPoint.y) + horizonOffset * 2 ;
-            points.push(startPoint, { x:startPoint.x + horizonOffset, y:startPoint.y }, { x:startPoint.x + horizonOffset, y:endPoint.y + horizonOffset }, { x:endPoint.x, y:endPoint.y + horizonOffset }, endPoint );
-        }
+        // if ( direc === 'left') {
+        //     strokeLength = Math.abs(endPoint.x - startPoint.x) + horizonOffset * 4 + Math.abs(endPoint.y - startPoint.y) + verticalOffset * 2;
+        //     points.push(startPoint, { x:startPoint.x + horizonOffset, y:startPoint.y }, { x:startPoint.x + horizonOffset, y:endPoint.y - verticalOffset }, { x:endPoint.x - horizonOffset, y:endPoint.y - verticalOffset }, { x:endPoint.x - horizonOffset, y:endPoint.y }, endPoint);
+        // } else if ( direc === 'right') {
+        //     strokeLength = Math.abs(endPoint.x - startPoint.x) + horizonOffset * 2 + Math.abs(endPoint.y - startPoint.y) + verticalOffset * 2;
+        //     points.push(startPoint, { x:startPoint.x + horizonOffset, y:startPoint.y }, { x:startPoint.x + horizonOffset, y:endPoint.y - verticalOffset }, { x:endPoint.x + horizonOffset, y:endPoint.y -verticalOffset }, { x:endPoint.x + horizonOffset, y:endPoint.y }, endPoint);
+        // } else if ( direc === 'top') {
+        //     strokeLength = Math.abs(endPoint.x - startPoint.x) + horizonOffset * 2 + Math.abs(endPoint.y - startPoint.y) + horizonOffset * 2;
+        //     points.push(startPoint, { x:startPoint.x + horizonOffset, y:startPoint.y }, { x:startPoint.x + horizonOffset, y:endPoint.y - horizonOffset }, { x:endPoint.x, y:endPoint.y - horizonOffset }, endPoint);
+        // } else if ( direc === 'bottom') {
+        //     strokeLength = Math.abs(endPoint.x - startPoint.x) + horizonOffset * 2 + Math.abs(endPoint.y - startPoint.y) + horizonOffset * 2 ;
+        //     points.push(startPoint, { x:startPoint.x + horizonOffset, y:startPoint.y }, { x:startPoint.x + horizonOffset, y:endPoint.y + horizonOffset }, { x:endPoint.x, y:endPoint.y + horizonOffset }, endPoint );
+        // }
     }
     let prevFlowPath = flowId ? sourceObj.flowArr.filter(i=>i.objId === flowId )[0] : null ;
     // 渲染管道，分为两部分，外部的管道对象和内部表示流向的对象
     let id = getId();
     let pipePath = new fabric.Polyline(points,{
-        stroke: prevFlowPath ? prevFlowPath.pipePath.stroke : '#cccccc',
-        strokeWidth: prevFlowPath ? prevFlowPath.pipePath.strokeWidth : 14,
+        stroke:pipeColor,
+        strokeWidth:pipeWidth,
         fill:'transparent',
         originX:'center',
         originY:'center',
         objId:id,
-        hasControls:false
+        hasControls:false,
+        evented:false
     });
     let flowPath = new fabric.Polyline(points, {
-        stroke:prevFlowPath ? prevFlowPath.stroke : '#0000ff',
+        stroke:flowColor,
         fill:'transparent',
-        strokeWidth: prevFlowPath ? prevFlowPath.strokeWidth : 8,
+        strokeWidth:flowWidth,
         strokeDashArray:[strokeLength, strokeLength],
         originX:'center',
         originY:'center',
         objId:id,
-        hasControls:false
+        hasControls:false,
+        evented:false
     });
-    flowPath.direc = direc;
+    flowPath.opts = opts;
     flowPath.pipePath = pipePath;
-    flowPath.start = sourceObj;
-    flowPath.end = targetObj;
+    flowPath.start = sourceObj.objId;
+    flowPath.end = targetObj.objId;
     flowPath.strokeLength = strokeLength;
-    flowPath.lockMovementX = true;
-    flowPath.lockMovementY = true;
-    pipePath.lockMovementX = true;
-    pipePath.lockMovementY = true;
     initExports(pipePath);
     initExports(flowPath);
     startMotion(canvas, flowPath);
@@ -193,26 +231,26 @@ function _connectFromSourceToTarget(canvas, sourceObj, targetObj, direc, flowId)
         targetObj.flowArr = [];
     }
     if ( prevFlowPath ) {
-        // 如果是流向同一个目标对象，则更新流向
+        // 如果是流向同一个目标对象，则删除之前绘制的管道
         canvas.remove(prevFlowPath.pipePath);
         canvas.remove(prevFlowPath);
         // 各个对象的流向数组不统一，分别处理
-        let sourceNewArr = sourceObj.flowArr.map(i=>{
+        let newSourceArr = sourceObj.flowArr.map(i=>{
             if ( i.objId === flowId ) {
                 return flowPath;
             } else {
                 return i;
             }
         });
-        let targetNewArr = targetObj.flowArr.map(i=>{
+        let newTargetArr = targetObj.flowArr.map(i=>{
             if ( i.objId === flowId ) {
                 return flowPath;
             } else {
                 return i;
             }
         })
-        sourceObj.flowArr = sourceNewArr;
-        targetObj.flowArr = targetNewArr;
+        sourceObj.flowArr = newSourceArr;
+        targetObj.flowArr = newTargetArr;
     } else {
         // 如果是流向新的目标对象,则添加新的流向
         sourceObj.flowArr.push(flowPath);
@@ -223,6 +261,7 @@ function _connectFromSourceToTarget(canvas, sourceObj, targetObj, direc, flowId)
     // 将管道的渲染层级降至最底层，避免覆盖模型对象
     flowPath.sendToBack();
     pipePath.sendToBack();
+    
 }
 function startMotion(canvas, flowPath){
     flowPath.set({ strokeDashOffset:flowPath.strokeLength });

@@ -7,13 +7,12 @@ import BasicGraphAttrContainer from './BasicGraphAttrContainer';
 import SelectionAttrContainer from './SelectionAttrContainer';
 import PipeAttrContainer from './PipeAttrContainer';
 import style from './index.css';
-import bgImg from '../../../public/canvas_bg.png';
 let canvas = null;
 
 function CustomPainter(){
     let [currentTarget, setCurrentTarget] = useState(null);
     let [attrInfo, setAttrInfo] = useState(initGraphAttr);
-    let [selectedModels, setSelectedModels] = useState([]);
+    let [allModels, setAllModels] = useState([]);
     let [machList, setMachList] = useState(initMachList);
     let [paintList, setPaintList] = useState([]);
     let currentTargetRef = useRef(null);
@@ -26,7 +25,7 @@ function CustomPainter(){
         canvas = new fabric.Canvas('my-canvas',{
             backgroundColor:'#181e25',
             selection:true,
-            width:container.offsetWidth - 560,
+            width:container.offsetWidth,
             height:container.offsetHeight - 34
         });
         // canvas.setBackgroundImage(bgImg, canvas.renderAll.bind(canvas))
@@ -70,12 +69,12 @@ function CustomPainter(){
                             // 当选取对象为集合时
                             let childNodes = currentTargetRef.current._objects.filter( i => graphTypes.includes(i.type) );
                             let childNodeIds = childNodes.map(i=>i.objId);
-                            let selectedModels = canvas.getObjects().filter(i=> graphTypes.includes(i.type)).filter(i=>!childNodeIds.includes(i.objId));
-                            setSelectedModels(selectedModels);
+                            let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type)).filter(i=>!childNodeIds.includes(i.objId));
+                            setAllModels(temp);
                         } else {
                             // 当选取对象为单个对象
                             let temp = canvas.getObjects().filter(i=>graphTypes.includes(i.type)).filter(i=>i.objId !== currentTargetRef.current.objId);                            
-                            setSelectedModels(temp);
+                            setAllModels(temp);
                         }  
                     }
                 })
@@ -108,22 +107,22 @@ function CustomPainter(){
                 initExports(graphObj);
                 initExports(textObj);
                 // 当新模型拖入绘图区，更新可连接对象列表
-                if ( currentTargetRef.current && currentTargetRef.current.type ) {
-                    if ( currentTargetRef.current.type === 'activeSelection' ) {
-                        // 当选取对象为集合时
-                        let childNodes = currentTargetRef.current._objects.filter( i => graphTypes.includes(i.type) );
-                        let childNodeIds = childNodes.map(i=>i.objId);
-                        let selectedModels = canvas.getObjects().filter(i=> graphTypes.includes(i.type)).filter(i=>!childNodeIds.includes(i.objId));
-                        setSelectedModels(selectedModels);
-                    } else {
-                        // 当选取对象为单个对象
-                        let temp = canvas.getObjects().filter(i=>graphTypes.includes(i.type)).filter(i=>i.objId !== currentTargetRef.current.objId);                            
-                        setSelectedModels(temp);
-                    }  
-                }
+                // if ( currentTargetRef.current && currentTargetRef.current.type ) {
+                //     if ( currentTargetRef.current.type === 'activeSelection' ) {
+                //         // 当选取对象为集合时
+                //         let childNodes = currentTargetRef.current._objects.filter( i => graphTypes.includes(i.type) );
+                //         let childNodeIds = childNodes.map(i=>i.objId);
+                //         let selectedModels = canvas.getObjects().filter(i=> graphTypes.includes(i.type)).filter(i=>!childNodeIds.includes(i.objId));
+                //         setSelectedModels(selectedModels);
+                //     } else {
+                //         // 当选取对象为单个对象
+                //         let temp = canvas.getObjects().filter(i=>graphTypes.includes(i.type)).filter(i=>i.objId !== currentTargetRef.current.objId);                            
+                //         setSelectedModels(temp);
+                //     }  
+                // }
             } 
         });
-        // 监听对象的属性，如有变动更新右侧的属性面板
+        // 监听对象的属性，如有变动更新右侧的属性面板,更新管道信息
         canvas.on('object:modified', ({ target })=>{
             setAttrInfo(getBasicAttrs(target));
             if ( target.flowArr && target.flowArr.length ) {
@@ -134,31 +133,26 @@ function CustomPainter(){
         })
         canvas.on('selection:created',({ selected })=>{
             let selection = canvas.getActiveObject();
+            console.log(selection);
             selection.lockRotation = true;
             if ( selection.type === 'activeSelection' && selection._objects.length ) {
                 let childNodes = selection._objects.filter( i => graphTypes.includes(i.type) );
                 let childNodeIds = childNodes.map(i=>i.objId);
-                let selectedModels = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && !childNodeIds.includes(i.objId));
-                setSelectedModels(selectedModels);
+                let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && !childNodeIds.includes(i.objId));
+                setAllModels(temp);
             }    
             setCurrentTarget(selection);
         });       
         canvas.on('mouse:down',function(option){
             let { e, target, pointer } = option; 
-            if ( target && target.type !== 'text' && target.type !== 'line' ){
-                if ( target.type !== 'polyline' ) {
-                    target.lockMovementX = false;
-                    target.lockMovementY = false;
-                }
+            if ( target && graphTypes.includes(target.type) ){
                 if ( e.altKey ){
                     // 按住ALT键拖动复制选中的对象，只能复制模型对象
-                    if ( target.type !== 'text' && target.type !== 'polyline' ) {
-                        cloneModel(canvas, target, pointer, obj=>setCurrentTarget(obj), (arr)=>setSelectedModels(arr));
-                    }
+                    cloneModel(canvas, target, pointer, obj=>setCurrentTarget(obj), (arr)=>setSelectedModels(arr));
                 } else {
-                    let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.objId !== target.objId);
-                    setSelectedModels(temp);
                     setCurrentTarget(target);                          
+                    let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.objId !== target.objId);
+                    setAllModels(temp);
                 }
                 
             }      
@@ -232,7 +226,8 @@ function CustomPainter(){
                 {
                     currentTarget && currentTarget.type === 'activeSelection' 
                     ?
-                    <SelectionAttrContainer canvas={canvas} currentTarget={currentTarget} selectedModels={selectedModels}  />
+                    null
+                    // <SelectionAttrContainer canvas={canvas} currentTarget={currentTarget} selectedModels={selectedModels}  />
                     :
                     currentTarget && currentTarget.type === 'polyline' 
                     ?
@@ -244,7 +239,7 @@ function CustomPainter(){
                         canvas={canvas} 
                         currentTarget={currentTarget} 
                         attrInfo={attrInfo} 
-                        selectedModels={selectedModels}
+                        allModels={allModels}
                         machList={machList}
                         onChangeAttr={(option)=>setAttrInfo(option)} 
                     />

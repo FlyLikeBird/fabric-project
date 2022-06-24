@@ -34,14 +34,19 @@ html, body {
 .content-container {
     width:100%;
     height:calc( 100% - 34px);
-    display:flex;
+    position:relative;
 }
 /* 模型导入区样式 */
 .model-container {
-    width:280px;
+    position:absolute;
+    width:12%;
     background-color:#353a40;
     color:#fff;
     overflow:hidden auto;
+    top:5%;
+    left:0;
+    height:90%;
+    z-index:2;
 }
 .model-item {
     padding:0.5rem;
@@ -53,7 +58,7 @@ html, body {
 }
 
 .model-item .item-wrapper {
-    width:33.3%;
+    width:50%;
     display:inline-block;
     vertical-align: top;
     height:120px;
@@ -79,9 +84,14 @@ html, body {
 }
 /* 属性区样式 */
 .attr-container {
-    width:280px;
+    width:16%;
     background-color:#353a40;
     color:rgba(255, 255, 255, 0.85);
+    position:absolute;
+    z-index:2;
+    top:5%;
+    height:90%;
+    right:0;
 }
 
 .attr-container .attr-item-wrapper {
@@ -91,23 +101,123 @@ html, body {
     padding:0.5rem 1rem;
     border-bottom:1px solid #4e5257;
 }
+.attr-container .attr-item-wrapper .attr-item-label {
+    margin-right:6px;
+    width:30%;
+}
+.attr-container .attr-item-wrapper .attr-item-control {
+    width:70%;
+    position:relative;
+    display:inline-flex;
+    align-items: center;
+}
+
+.attr-container .attr-modal {
+    position:absolute;
+    height:460px;
+    top:40px;
+    right:0;
+    width:200%;
+    z-index:10;
+    border-radius:4px;
+    background:#fff;
+    box-shadow: 0 3px 6px -4px #0000001f, 0 6px 16px #00000014, 0 9px 28px 8px #0000000d;
+}
+
+.attr-container .attr-modal .attr-modal-content {
+    height:420px;
+    overflow: hidden auto;
+}
+.attr-container .attr-modal .attr-modal-footer {
+    height:40px;
+}
+/* 外部控件样式 */
 .attr-container .attr-item-wrapper :global(.ant-input){
-    width:140px;
-    background-color:#353a40;
-    border:1px solid rgba(255, 255, 255, 0.3);
+    width:100%;
+    background-color:transparent;
+    border:1px solid rgba(255, 255, 255 ,0.3);
     color:#fff;
+}
+.attr-container .attr-item-wrapper :global(.ant-input-number){
+    width:100%;
+    background:transparent;
+}
+.attr-container .attr-item-wrapper .attr-input {
+    width:100%;
+    border:1px solid #d9d9d9;
 }
 .attr-container .attr-item-wrapper :global(.ant-select) {
-    width:140px;
+    width:100%;
 }
 .attr-container .attr-item-wrapper :global(.ant-select) :global(.ant-select-selector) {
-    background-color:#353a40;
-    border:1px solid rgba(255, 255, 255, 0.3);
+    background-color:transparent;
+    border:1px solid rgba(255, 255, 255 ,0.3);
     color:#fff;
-    margin-left:6px;
 }
 .attr-container .attr-item-wrapper :global(.ant-select) :global(.ant-select-arrow) {
     color:#fff;
 }
+/* ----- */
+/* modal组件内部控件样式 */
+.attr-modal .attr-item-wrapper {
+    border-bottom:none;
+    padding:4px 0;
+}
+.attr-modal .attr-item-wrapper .attr-item-label {
+    width:24%;
+}
+.attr-modal .attr-item-wrapper .attr-item-control {
+    width:76%;
+}
+.attr-modal .attr-item-wrapper :global(.ant-input){
+    border:1px solid rgba(0, 0, 0, 0.15);
+    color:rgba(0, 0, 0, 0.65);
+}
+.attr-container .attr-item-wrapper :global(.ant-input-number){
+    border:1px solid rgba(0, 0, 0, 0.15);
+}
+.attr-modal .attr-item-wrapper :global(.ant-select) :global(.ant-select-selector) {
+    border:1px solid rgba(0, 0, 0, 0.15);
+    color:rgba(0, 0, 0, 0.65);
+}
+.attr-modal .attr-item-wrapper :global(.ant-select) :global(.ant-select-arrow) {
+    color:rgba(0, 0, 0, 0.65);
+}
+/* ------ */
+.list-container {
 
+}
 
+.list-container .list-item-wrapper {
+    
+}
+
+.list-container .list-item-wrapper .list-item {
+    color:rgba(0, 0, 0, 0.65);
+    transition:background 0.3s ease;
+    border-bottom:1px solid rgba(0, 0, 0, 0.15);
+    padding-bottom:4px;
+    cursor: pointer;
+}
+
+.list-container .list-item-wrapper .list-item:hover {
+    background:rgba(0, 0, 0, 0.05);
+}
+.list-container .list-item-wrapper .list-item.selected {
+    background:#e6f7ff;
+}
+
+.list-item .list-item-content {
+    display:flex;
+    justify-content: space-between;
+    padding:0 1rem;
+    color:rgba(0, 0, 0, 0.85);
+    height:32px;
+    line-height:32px;
+    font-size:1rem;
+}
+
+.list-item .list-item-extra {
+    padding-left:3rem;
+    font-size:0.8rem;
+}
