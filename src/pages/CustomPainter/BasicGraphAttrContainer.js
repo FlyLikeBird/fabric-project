@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Input, Select, message, Divider, Tag, Popover, InputNumber } from 'antd';
+import { Button, Input, Select, message, Divider, Tag, Popover, InputNumber, Slider } from 'antd';
 import { CheckCircleFilled } from '@ant-design/icons';
 import { updateTargetAttr, updateTextAttr, getBasicAttrs,  graphs, graphTypes, connectModels } from './util';
 import style from './index.css';
@@ -14,18 +14,24 @@ let posList = [{ title:'左侧', key:'left'}, { title:'顶部', key:'top'}, { ti
     }
 */
 let defaultOpts = { entryDirec:'right', entryOffset:50, outputDirec:'left', outputOffset:50, pipeWidth:14, pipeColor:'#0c325a', flowWidth:6, flowColor:'#04a3fe' };
-
+let isAll = false;
 function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, machList, onChangeAttr }){
-    let [selectedModels, setSelectedModels] = useState([]);
+    let [selectedIds, setSelectedIds] = useState([]);
+    let [optList, setOptList] = useState([]);
     let [machId, setMachId] = useState(0);
     let [visible, setVisible] = useState(false);
+    let [labelVisible, setLabelVisible] = useState(false);
     useEffect(()=>{
         return ()=>{
             clearTimeout(timer);
             timer = null;
-        }
+            isAll = false;
+        }   
     },[]);
     useEffect(()=>{
+        // 切换选中目标时，重置全选的状态
+        isAll = false;
+        setSelectedIds([]);
         if ( currentTarget ){
             onChangeAttr(getBasicAttrs(currentTarget));
             if ( currentTarget.machId ) {
@@ -33,29 +39,46 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
             } else {
                 setMachId(0);
             }
-            if ( currentTarget.flowArr ){
-                let temp = currentTarget.flowArr.map(item=>{
-                    return { objId:item.objId, opts:item.opts };
-                });
-                setSelectedModels(temp);
-                
-            } else {                
-                
-            }
+            let flowArr = currentTarget.flowArr || [];
+            let modelList = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.objId !== currentTarget.objId);
+            let temp = modelList.map(model=>{
+                let result = flowArr.filter(i=>i.end === model.objId )[0];
+                return result ? result.opts : { ...defaultOpts};
+            });
+            setOptList(temp);
         }
     },[currentTarget]);
     
     let selectedMachs = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.objId !== currentTarget.objId ).map(i=>i.machId);
-    let handleOpts = (objId, key, value )=>{
-        let newArr = selectedModels.map(i=>{
-            if ( i.objId === objId) {
-                i.opts[key] = value;
+    let handleOpts = (index, key, value )=>{
+        let newArr = optList.map((item, j)=>{
+            if ( index === j) {
+                item[key] = value;
             } 
-            return i;
+            return item;
         });
-        setSelectedModels(newArr);
+        setOptList(newArr);
+    };
+    let handleConnect = ( isDelete )=>{
+        if ( selectedIds.length ){
+            let flowArr = currentTarget.flowArr;
+            selectedIds.forEach(id=>{
+                let toTarget, index;
+                allModels.forEach((model, i)=>{
+                    if ( model.objId === id) {
+                        toTarget = model;
+                        index = i;
+                    }
+                })
+                let result = flowArr && flowArr.length ? flowArr.filter(i=>i.end === id )[0] : null;
+                let flowId = result ? result.objId : null
+                connectModels(canvas, currentTarget, toTarget, optList[index], flowId, isDelete );
+            });
+            setSelectedIds([...selectedIds]);
+        } else {
+            message.info('请选择要连接或断开的对象')
+        }
     }
-    let selctedIds = selectedModels.map(i=>i.objId);
     return (
         <div className={style['attr-container']}>
             {/* 绑定数据源 */}
@@ -91,39 +114,35 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                 <span className={style['attr-item-label']}>连接至:</span>
                 <div className={style['attr-item-control']}>
                     <Button type='primary' onClick={()=>setVisible(true)} style={{ width:'100%' }}>选择对象</Button>
-                    <div className={style['attr-modal']} style={{ display:visible ? 'block' : 'none' }}>
+                    <div className={style['attr-modal']} style={{ display:visible ? 'block' : 'none' }} >
                         <div className={style['attr-modal-content']}>
                             {
                                 allModels.length 
                                 ?
                                 <div className={style['list-container']}>
                                     {
-                                        allModels.map(obj=>{
-                                            let isSelected = selctedIds.includes(obj.objId) ? true : false;
+                                        allModels.map((obj,index)=>{
+                                            let isSelected = selectedIds.includes(obj.objId) ? true : false;
                                             let isConnect = false;
-                                            let selectedObj = selectedModels.filter(i=>i.objId === obj.objId)[0];
-                                            let opts = selectedObj ? selectedObj.opts : { ...defaultOpts };
-                                            if ( currentTarget.flowArr && currentTarget.flowArr.length ){
-                                                let flowObj = currentTarget.flowArr.filter(flow=>flow.end === obj.objId)[0];                                          
-                                                if ( flowObj ) {
-                                                    isConnect = true;
-                                                    opts = flowObj.opts;
-                                                }
+                                            let opts = optList[index] || {};
+                                            if ( currentTarget && currentTarget.flowArr ) {
+                                                let result = currentTarget.flowArr.filter(item=>item.end === obj.objId)[0];
+                                                if ( result ) isConnect = true;
                                             }
                                             return (
                                             <div className={style['list-item-wrapper']} key={obj.objId}>
                                                 <div className={style['list-item'] + ' ' + (isSelected ? style['selected'] : '') }>
                                                     <div className={style['list-item-content']} onClick={()=>{
-                                                        let newArr = [...selectedModels];
-                                                        if ( !selctedIds.includes(obj.objId)) {
-                                                            newArr.push({ objId:obj.objId, opts:{ ...defaultOpts}});
+                                                        let newArr = [...selectedIds];
+                                                        if ( !selectedIds.includes(obj.objId)) {
+                                                            newArr.push(obj.objId);
                                                         } else {
-                                                            newArr = newArr.filter(i=>i.objId !== obj.objId );
+                                                            newArr = newArr.filter(i=>i !== obj.objId );
                                                         }
-                                                        setSelectedModels(newArr);
+                                                        setSelectedIds(newArr);
                                                     }}>
                                                         <div style={{ fontWeight:'bold' }}><CheckCircleFilled style={{ marginRight:'4px', fontSize:'1.2rem', color: isSelected ? '#1890ff' : '#d3d3d3' }} />{ obj.childNode.text }</div>
-                                                        <div><Tag style={{ color:isConnect ? 'green' : '#ccc' }}>{ isConnect ? '已连接' : '未连接' }</Tag></div>
+                                                        <div><span className={style['tag']} style={{ background:isConnect ? '#87d068' : '#cccccc' }}>{ isConnect ? '已连接' : '未连接' }</span></div>
                                                     </div>
                                                     <div className={style['list-item-extra']}>
                                                         {/* 连接方向 */}
@@ -131,7 +150,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                                                             <div className={style['attr-item-label']}>连接方向:</div>
                                                             <div className={style['attr-item-control']}>
                                                                 <div style={{ width:'30%'}}>
-                                                                    <Select size='small' disabled={ isSelected ? false : true } value={opts.entryDirec} onChange={value=>handleOpts(obj.objId, 'entryDirec', value)}>
+                                                                    <Select size='small' disabled={ isSelected ? false : true } value={opts.entryDirec} onChange={value=>handleOpts(index, 'entryDirec', value)}>
                                                                         {
                                                                             posList.map((item)=>(
                                                                                 <Option key={item.key} value={item.key}>{ item.title }</Option>
@@ -139,9 +158,9 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                                                                         }
                                                                     </Select>
                                                                 </div>
-                                                                <div style={{ width:'20%' }}><InputNumber  disabled={ isSelected ? false : true } size='small' min={0} max={100} value={opts.entryOffset} onChange={value=>handleOpts(obj.objId, 'entryOffset', value)} /></div>
+                                                                <div style={{ width:'20%' }}><InputNumber  disabled={ isSelected ? false : true } size='small' min={0} max={100} value={opts.entryOffset} onChange={value=>handleOpts(index, 'entryOffset', value)} /></div>
                                                                 <div style={{ width:'30%'}}>
-                                                                    <Select size='small' disabled={ isSelected ? false : true } value={opts.outputDirec} onChange={value=>handleOpts(obj.objId, 'outputDirec', value)}>
+                                                                    <Select size='small' disabled={ isSelected ? false : true } value={opts.outputDirec} onChange={value=>handleOpts(index, 'outputDirec', value)}>
                                                                         {
                                                                             posList.map((item)=>(
                                                                                 <Option key={item.key} value={item.key}>{ item.title }</Option>
@@ -149,7 +168,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                                                                         }
                                                                     </Select>
                                                                 </div>
-                                                                <div style={{ width:'20%' }}><InputNumber  disabled={ isSelected ? false : true } size='small' min={0} max={100} value={opts.outputOffset} onChange={value=>handleOpts(obj.objId, 'outputOffset', value)} /></div>
+                                                                <div style={{ width:'20%' }}><InputNumber  disabled={ isSelected ? false : true } size='small' min={0} max={100} value={opts.outputOffset} onChange={value=>handleOpts(index, 'outputOffset', value)} /></div>
                                                             </div>
                                                         </div>
                                                         {/* 管道设置 */}
@@ -157,16 +176,16 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                                                             <div className={style['attr-item-label']}>管道宽度:</div>
                                                             <div className={style['attr-item-control']}>
                                                                 <div style={{ width:'30%' }}>
-                                                                    <InputNumber size='small' disabled={ isSelected ? false : true } min={0} max={30} value={opts.pipeWidth} onChange={value=>handleOpts(obj.objId, 'pipeWidth', value)} />
+                                                                    <InputNumber size='small' disabled={ isSelected ? false : true } min={0} max={30} value={opts.pipeWidth} onChange={value=>handleOpts(index, 'pipeWidth', value)} />
                                                                 </div>
                                                                 <div style={{ width:'20%' }}>
-                                                                    <input type='color' disabled={ isSelected ? false : true } className={style['attr-input']} value={opts.pipeColor} onChange={value=>handleOpts(obj.objId, 'pipeColor', value)}/>
+                                                                    <input type='color' disabled={ isSelected ? false : true } className={style['attr-input']} value={opts.pipeColor} onChange={value=>handleOpts(index, 'pipeColor', value)}/>
                                                                 </div>
                                                                 <div style={{ width:'30%' }}>
-                                                                    <InputNumber size='small' disabled={ isSelected ? false : true } min={0} max={30} value={opts.flowWidth} onChange={value=>handleOpts(obj.objId, 'flowWidth', value)}/>
+                                                                    <InputNumber size='small' disabled={ isSelected ? false : true } min={0} max={30} value={opts.flowWidth} onChange={value=>handleOpts(index, 'flowWidth', value)}/>
                                                                 </div>
                                                                 <div style={{ width:'20%' }}>
-                                                                    <input type='color' disabled={ isSelected ? false : true } className={style['attr-input']} value={opts.flowColor} onChange={value=>handleOpts(obj.objId, 'flowColor', value)} />
+                                                                    <input type='color' disabled={ isSelected ? false : true } className={style['attr-input']} value={opts.flowColor} onChange={value=>handleOpts(index, 'flowColor', value)} />
                                                                 </div>
                                                             </div>
                                                         </div>                                             
@@ -177,25 +196,26 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                                     }
                                 </div>
                                 :
-                                <div>hello</div>
+                                <div>没有可连接的对象</div>
                             }
                         </div>
                         <div className={style['attr-modal-footer']}>
-                            <Button type='primary' style={{ marginRight:'6px' }} onClick={()=>{
-                                if ( selectedModels.length ){
-                                    let flowArr = currentTarget.flowArr;
-                                    selectedModels.forEach(item=>{
-                                        let toTarget = allModels.filter(i=>i.objId === item.objId )[0];
-                                        let result = flowArr && flowArr.length ? flowArr.filter(i=>i.end === item.objId )[0] : null;
-                                        let flowId = result ? result.objId : null
-                                        connectModels(canvas, currentTarget, toTarget, item.opts, flowId );
-                                    });
-                                    setSelectedModels([...selectedModels]); 
-                                } else {
-                                    message.info('请选择要连接或断开的对象')
-                                }
-                            }}>连接</Button>
-                            <Button>断开</Button>
+                            <div>
+                                <Button style={{ marginRight:'6px' }} onClick={()=>{
+                                    if ( !isAll ){
+                                        let temp = allModels.map(i=>{
+                                            return i.objId;
+                                        });
+                                        setSelectedIds(temp);
+                                    } else {
+                                        setSelectedIds([]);
+                                    }
+                                    isAll = !isAll;
+                                }}>全选</Button>
+                                <Button type='primary' style={{ marginRight:'6px' }} onClick={()=>handleConnect(false)}>连接</Button>
+                                <Button onClick={()=>handleConnect(true)}>断开</Button> 
+                            </div>
+                            <Button onClick={()=>{ setVisible(false); setSelectedIds([]) }}>关闭</Button>                        
                         </div>
                     </div>
                 </div>
@@ -261,26 +281,26 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                 </div>
             </div>
             <div className={style['attr-item-wrapper']}>
-                <span className={style['label']}>标题大小:</span>
+                <span className={style['label']}>标题样式:</span>
                 <div className={style['attr-item-control']}>
-                    <Input value={attrInfo.fontSize} className={style['attr-input']}  onChange={e=>{
-                        onChangeAttr({ ...attrInfo, fontSize:e.target.value });
-                        clearTimeout(timer);
-                        timer = setTimeout(()=>{
-                            updateTextAttr(canvas, currentTarget, 'fontSize', Number(e.target.value))
-                        },500)
-                    }} /> 
+                    <div className={style['attr-item-control-content']}>
+                        <InputNumber min={6} max={30} value={attrInfo.fontSize} className={style['attr-input']}  onChange={value=>{
+                            onChangeAttr({ ...attrInfo, fontSize:value });
+                            clearTimeout(timer);
+                            timer = setTimeout(()=>{
+                                updateTextAttr(canvas, currentTarget, 'fontSize', Number(value))
+                            },500)
+                        }} /> 
+                    </div>
+                    <div className={style['attr-item-control-content']}>
+                        <input type='color' value={attrInfo.fontColor} className={style['attr-input']} onChange={e=>{
+                            onChangeAttr({ ...attrInfo, fontColor:e.target.value });
+                            updateTextAttr(canvas, currentTarget, 'fontColor', e.target.value);                 
+                        }} />
+                    </div>
                 </div>                 
             </div>
-            <div className={style['attr-item-wrapper']}>
-                <span className={style['label']}>标题颜色:</span>
-                <div className={style['attr-item-control']}>
-                    <input type='color' value={attrInfo.fontColor} className={style['attr-input']} onChange={e=>{
-                        onChangeAttr({ ...attrInfo, fontColor:e.target.value });
-                        updateTextAttr(canvas, currentTarget, 'fontColor', e.target.value);                 
-                    }} />
-                </div>
-            </div>
+           
             {
                 currentTarget.type !== 'image' 
                 ?
@@ -349,52 +369,34 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
             <div className={style['attr-item-wrapper']}>
                 <span className={style['label']}>X轴缩放:</span>
                 <div className={style['attr-item-control']}>
-                    <Input value={attrInfo.scaleX} className={style['attr-input']}  onChange={e=>{
-                        onChangeAttr({ ...attrInfo, scaleX:e.target.value });
-                        clearTimeout(timer);
-                        timer = setTimeout(()=>{
-                            updateTargetAttr(canvas, currentTarget, 'scaleX', Number(e.target.value))
-                        },500)
-                    }} />
+                    <Slider min={0} max={5} value={attrInfo.scaleX} step={0.1} onChange={value=>{
+                        onChangeAttr({ ...attrInfo, scaleX:value });
+                        updateTargetAttr(canvas, currentTarget, 'scaleX', value)
+                    }}/>
                 </div>            
             </div>
             <div className={style['attr-item-wrapper']}>
                 <span className={style['label']}>Y轴缩放:</span>
                 <div className={style['attr-item-control']}>
-                    <Input value={attrInfo.scaleY} className={style['attr-input']}  onChange={e=>{
-                        onChangeAttr({ ...attrInfo, scaleY:e.target.value });
-                        clearTimeout(timer);
-                        timer = setTimeout(()=>{
-                            updateTargetAttr(canvas, currentTarget, 'scaleY', Number(e.target.value))
-                        },500)
-                    }} />
+                    <Slider min={0} max={5} value={attrInfo.scaleY} step={0.1} onChange={value=>{
+                        onChangeAttr({ ...attrInfo, scaleY:value });
+                        updateTargetAttr(canvas, currentTarget, 'scaleY', value)
+                    }}/>
                 </div>                  
             </div>
-            {
-                currentTarget.type !== 'image'
-                ?
-                <div className={style['attr-item-wrapper']}>
-                    <span className={style['label']}>旋转角度:</span>
-                    <div className={style['attr-item-control']}>
-                        <Input value={attrInfo.angle} className={style['attr-input']}  onChange={e=>{
-                            onChangeAttr({ ...attrInfo, angle:e.target.value });
-                            clearTimeout(timer);
-                            timer = setTimeout(()=>{
-                                updateTargetAttr(canvas, currentTarget, 'angle', Number(e.target.value))
-                            },500)
-                        }} />
-                    </div>                 
-                </div>
-                :
-                null
-            }
-            {/* <Button type='primary' style={{ margin:'1rem ' }} danger onClick={()=>{
-                if ( currentTarget.flowArr ) {
-                    let flowObj = currentTarget.flowArr[0];
-                    flowObj.set({ stroke:'#ff0000'});
-                    canvas.renderAll();
-                }
-            }}>模拟告警信息</Button> */}
+            
+            <div className={style['attr-item-wrapper']}>
+                <span className={style['label']}>旋转角度:</span>
+                <div className={style['attr-item-control']}>
+                    <Slider min={0} max={360} value={attrInfo.angle} onChange={value=>{
+                        onChangeAttr({ ...attrInfo, angle:value });
+                        updateTargetAttr(canvas, currentTarget, 'angle', value)
+                    }}/>
+                </div>                 
+            </div>
+            <div className={style['attr-item-wrapper']}>
+                <span className={style['label']}>添加标注</span>
+            </div>
         </div>
     )
 }

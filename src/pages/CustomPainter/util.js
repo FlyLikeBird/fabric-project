@@ -103,20 +103,34 @@ let direcMaps = {
     'top':{ x:0.5, y:0 },
     'bottom':{ x:0.5, y:1 }
 };
-export function connectModels( canvas, sourceObj, targetObj, opts, flowId ){
-    _connectFromSourceToTarget(canvas, sourceObj, targetObj, opts, flowId);
+export function connectModels( canvas, sourceObj, targetObj, opts, flowId, isDelete ){
+    _connectFromSourceToTarget(canvas, sourceObj, targetObj, opts, flowId, isDelete );
 }
 
-function _connectFromSourceToTarget(canvas, sourceObj, targetObj, opts, flowId){
+function _connectFromSourceToTarget(canvas, sourceObj, targetObj, opts, flowId, isDelete){
     let sourceRect = sourceObj.getBoundingRect();
     let targetRect = targetObj.getBoundingRect();
     let { entryDirec, entryOffset, outputDirec, outputOffset, pipeWidth, pipeColor, flowWidth, flowColor } = opts;
-    
     if ( sourceObj.group ){
         // 将组合中模型对象的相对定位转换成绝对定位
         let groupRect = sourceObj.group.getBoundingRect();
         sourceRect.left = groupRect.left + groupRect.width / 2 + sourceRect.left;
         sourceRect.top = groupRect.top + groupRect.height / 2 + sourceRect.top;
+    }
+    let prevFlowPath = flowId ? sourceObj.flowArr.filter(i=>i.objId === flowId )[0] : null ;
+    // 删除之前绘制的管道流向对象
+    if ( isDelete ){
+        if ( prevFlowPath ){
+            canvas.remove(prevFlowPath.pipePath);
+            canvas.remove(prevFlowPath);
+        }
+        if ( sourceObj.flowArr ) {
+            sourceObj.flowArr = sourceObj.flowArr.filter(i=>i.objId !== flowId );
+        }
+        if ( targetObj.flowArr ){
+            targetObj.flowArr = targetObj.flowArr.filter(i=>i.objId !== flowId );
+        }
+        return ;
     }
     let points = [];
     let strokeLength = 0;
@@ -191,7 +205,6 @@ function _connectFromSourceToTarget(canvas, sourceObj, targetObj, opts, flowId){
         //     points.push(startPoint, { x:startPoint.x + horizonOffset, y:startPoint.y }, { x:startPoint.x + horizonOffset, y:endPoint.y + horizonOffset }, { x:endPoint.x, y:endPoint.y + horizonOffset }, endPoint );
         // }
     }
-    let prevFlowPath = flowId ? sourceObj.flowArr.filter(i=>i.objId === flowId )[0] : null ;
     // 渲染管道，分为两部分，外部的管道对象和内部表示流向的对象
     let id = getId();
     let pipePath = new fabric.Polyline(points,{
@@ -220,6 +233,8 @@ function _connectFromSourceToTarget(canvas, sourceObj, targetObj, opts, flowId){
     flowPath.start = sourceObj.objId;
     flowPath.end = targetObj.objId;
     flowPath.strokeLength = strokeLength;
+    flowPath.selectable = false;
+    pipePath.selectable = false;
     initExports(pipePath);
     initExports(flowPath);
     startMotion(canvas, flowPath);

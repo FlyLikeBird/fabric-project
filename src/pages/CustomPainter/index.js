@@ -49,7 +49,6 @@ function CustomPainter(){
                         top:e.offsetY + oImg.height / 2 + 10,
                         left:e.offsetX - textObj.width / 2,
                     });
-                    oImg.lockRotation = true;
                     oImg.sourcePath = data.path;
                     oImg.set({
                         left:e.offsetX,
@@ -64,6 +63,7 @@ function CustomPainter(){
                     wrapperEvents(oImg, machList);
                     initExports(oImg);
                     initExports(textObj);
+                    
                     if ( currentTargetRef.current && currentTargetRef.current.type ) {
                         if ( currentTargetRef.current.type === 'activeSelection' ) {
                             // 当选取对象为集合时
@@ -125,16 +125,17 @@ function CustomPainter(){
         // 监听对象的属性，如有变动更新右侧的属性面板,更新管道信息
         canvas.on('object:modified', ({ target })=>{
             setAttrInfo(getBasicAttrs(target));
+            let allModels = canvas.getObjects().filter(i=>graphTypes.includes(i.type));
             if ( target.flowArr && target.flowArr.length ) {
                 target.flowArr.forEach(obj=>{
-                    connectModels(canvas, obj.start, obj.end, obj.direc, obj.objId);
+                    let startObj = allModels.filter(i=>i.objId === obj.start )[0];
+                    let endObj = allModels.filter(i=>i.objId === obj.end)[0];
+                    connectModels(canvas, startObj, endObj, obj.opts, obj.objId, false);
                 })
             }
         })
         canvas.on('selection:created',({ selected })=>{
             let selection = canvas.getActiveObject();
-            console.log(selection);
-            selection.lockRotation = true;
             if ( selection.type === 'activeSelection' && selection._objects.length ) {
                 let childNodes = selection._objects.filter( i => graphTypes.includes(i.type) );
                 let childNodeIds = childNodes.map(i=>i.objId);
@@ -148,13 +149,12 @@ function CustomPainter(){
             if ( target && graphTypes.includes(target.type) ){
                 if ( e.altKey ){
                     // 按住ALT键拖动复制选中的对象，只能复制模型对象
-                    cloneModel(canvas, target, pointer, obj=>setCurrentTarget(obj), (arr)=>setSelectedModels(arr));
+                    cloneModel(canvas, target, pointer, obj=>setCurrentTarget(obj), (arr)=>setAllModels(arr));
                 } else {
-                    setCurrentTarget(target);                          
                     let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.objId !== target.objId);
                     setAllModels(temp);
+                    setCurrentTarget(target);                          
                 }
-                
             }      
         });
 
