@@ -14,6 +14,7 @@ let posList = [{ title:'左侧', key:'left'}, { title:'顶部', key:'top'}, { ti
     }
 */
 let defaultOpts = { entryDirec:'right', entryOffset:50, outputDirec:'left', outputOffset:50, pipeWidth:14, pipeColor:'#0c325a', flowWidth:6, flowColor:'#04a3fe' };
+let bgTypes = [{ key:'Circle'}, { key:'Rect'}]
 let isAll = false;
 function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, machList, onChangeAttr }){
     let [selectedIds, setSelectedIds] = useState([]);
@@ -21,6 +22,8 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
     let [machId, setMachId] = useState(0);
     let [visible, setVisible] = useState(false);
     let [labelVisible, setLabelVisible] = useState(false);
+    let [labelList, setLabelList] = useState([]);
+    let [selectedLabels, setSelectedLabels] = useState([]);
     useEffect(()=>{
         return ()=>{
             clearTimeout(timer);
@@ -46,6 +49,14 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                 return result ? result.opts : { ...defaultOpts};
             });
             setOptList(temp);
+            if ( currentTarget.tags && currentTarget.tags.length ){
+                
+            } else {
+                setLabelList([
+                    { text:'标注1', fontSize:14, fontColor:'#ffffff', hasBg:true, bgType:'Circle', bgColor:'#1890ff' },
+                    { text:'标注2', fontSize:14, fontColor:'#ffffff', hasBg:true, bgType:'Circle', bgColor:'#1890ff' }
+                ])
+            }
         }
     },[currentTarget]);
     
@@ -78,6 +89,9 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
         } else {
             message.info('请选择要连接或断开的对象')
         }
+    };
+    let handleLabel = ()=>{
+        
     }
     return (
         <div className={style['attr-container']}>
@@ -281,7 +295,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                 </div>
             </div>
             <div className={style['attr-item-wrapper']}>
-                <span className={style['label']}>标题样式:</span>
+                <span className={style['attr-item-label']}>标题样式:</span>
                 <div className={style['attr-item-control']}>
                     <div className={style['attr-item-control-content']}>
                         <InputNumber min={6} max={30} value={attrInfo.fontSize} className={style['attr-input']}  onChange={value=>{
@@ -305,7 +319,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                 currentTarget.type !== 'image' 
                 ?
                 <div className={style['attr-item-wrapper']}>
-                    <span className={style['label']}>填充颜色:</span>
+                    <span className={style['attr-item-label']}>填充颜色:</span>
                     <div className={style['attr-item-control']}>
                         <input type='color' value={attrInfo.fill} className={style['attr-input']} onChange={e=>{
                             onChangeAttr({ ...attrInfo, fill:e.target.value });
@@ -320,7 +334,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                 currentTarget.type !== 'image'
                 ?
                 <div className={style['attr-item-wrapper']}>
-                    <span className={style['label']}>描边颜色:</span>
+                    <span className={style['attr-item-label']}>描边颜色:</span>
                     <div className={style['attr-item-control']}>
                         <input type='color' value={attrInfo.stroke} className={style['attr-input']} onChange={e=>{
                             onChangeAttr({ ...attrInfo, stroke:e.target.value });
@@ -335,7 +349,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                 currentTarget.type !== 'image' 
                 ?
                 <div className={style['attr-item-wrapper']}>
-                    <span className={style['label']}>描边宽度:</span>
+                    <span className={style['attr-item-label']}>描边宽度:</span>
                     <div className={style['attr-item-control']}>
                         <input type='range' min={0} max={10} value={attrInfo.strokeWidth} className={style['attr-input']} onChange={e=>{
                             onChangeAttr({ ...attrInfo, strokeWidth:e.target.value });
@@ -351,7 +365,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                 ?           
                 graphs.filter(i=>i.type.toLowerCase() === currentTarget.type )[0].attrs.map(attr=>{
                     return (<div className={style['attr-item-wrapper']} key={attr.attrKey}>
-                        <span className={style['label']}>{ attr.attrName }:</span>
+                        <span className={style['attr-item-label']}>{ attr.attrName }:</span>
                         <div className={style['attr-item-control']}>
                             <Input value={attrInfo[attr.attrKey]} className={style['attr-input']}  onChange={e=>{
                                 onChangeAttr({ ...attrInfo, [attr.attrKey]:e.target.value });
@@ -367,7 +381,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                 null
             }
             <div className={style['attr-item-wrapper']}>
-                <span className={style['label']}>X轴缩放:</span>
+                <span className={style['attr-item-label']}>X轴缩放:</span>
                 <div className={style['attr-item-control']}>
                     <Slider min={0} max={5} value={attrInfo.scaleX} step={0.1} onChange={value=>{
                         onChangeAttr({ ...attrInfo, scaleX:value });
@@ -376,7 +390,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                 </div>            
             </div>
             <div className={style['attr-item-wrapper']}>
-                <span className={style['label']}>Y轴缩放:</span>
+                <span className={style['attr-item-label']}>Y轴缩放:</span>
                 <div className={style['attr-item-control']}>
                     <Slider min={0} max={5} value={attrInfo.scaleY} step={0.1} onChange={value=>{
                         onChangeAttr({ ...attrInfo, scaleY:value });
@@ -386,7 +400,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
             </div>
             
             <div className={style['attr-item-wrapper']}>
-                <span className={style['label']}>旋转角度:</span>
+                <span className={style['attr-item-label']}>旋转角度:</span>
                 <div className={style['attr-item-control']}>
                     <Slider min={0} max={360} value={attrInfo.angle} onChange={value=>{
                         onChangeAttr({ ...attrInfo, angle:value });
@@ -395,7 +409,42 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                 </div>                 
             </div>
             <div className={style['attr-item-wrapper']}>
-                <span className={style['label']}>添加标注</span>
+                <span className={style['attr-item-label']}>标注信息</span>
+                <div className={style['attr-item-control']}>
+                    <Button type='primary' onClick={()=>setLabelVisible(true)} style={{ width:'100%' }}>添加标注</Button>
+                    <div className={style['attr-modal'] + ' ' + style['small']} style={{ display:labelVisible ? 'block' : 'none' }}>
+                        <div className={style['attr-modal-content']}>
+                            <div className={style['list-container']}>
+                                {
+                                    labelList.map((item,index)=>(
+                                        <div className={style['list-item-wrapper']} key={index}>
+                                            <div className={style['list-item']}>
+                                                <div className={style['list-item-content']}>
+                                                    <Input />
+                                                    <InputNumber />
+                                                    <input type='color' value={attrInfo.fontColor} className={style['attr-input']} onChange={e=>{
+                                                        // onChangeAttr({ ...attrInfo, fontColor:e.target.value });
+                                                        // updateTextAttr(canvas, currentTarget, 'fontColor', e.target.value);                 
+                                                    }} />
+                                                </div>
+                                                <div className={style['list-item-extra']}>
+                                                    
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                }
+                            </div>
+                        </div>
+                        <div className={style['attr-modal-footer']}>
+                            <div>
+                                <Button type='primary' style={{ marginRight:'6px' }} onClick={()=>handle}>添加</Button>
+                                <Button>删除</Button>
+                            </div>
+                            <Button onClick={()=>setLabelVisible(false)}>关闭</Button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     )

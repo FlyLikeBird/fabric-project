@@ -138,6 +138,14 @@ html, body {
     justify-content: space-between;
     padding:0 1rem;
 }
+.attr-container .attr-modal.small {
+    height:260px;
+    width:160%;
+}
+.attr-container .attr-modal.small .attr-modal-content {
+    height:220px;
+}
+
 /* 外部控件样式 */
 .attr-container .attr-item-wrapper :global(.ant-input){
     width:100%;

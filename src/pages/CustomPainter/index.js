@@ -43,12 +43,13 @@ function CustomPainter(){
                 // 模型区
                 fabric.Image.fromURL(data.path, oImg=>{
                     let id = getId();
-                    let textObj = new fabric.Text(id + '-' + data.title, { fontSize:14, fill:'#ffffff' } );
+                    let textObj = new fabric.Text(id + '-' + data.title, { fontSize:14, fill:'#ffffff', evented:false } );
                     textObj.objId = id;
                     textObj.set({
                         top:e.offsetY + oImg.height / 2 + 10,
                         left:e.offsetX - textObj.width / 2,
                     });
+                    textObj.selectable = false;
                     oImg.sourcePath = data.path;
                     oImg.set({
                         left:e.offsetX,
