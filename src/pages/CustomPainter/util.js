@@ -38,6 +38,7 @@ for ( let i=0;i<10;i++ ){
 }
 let pathObj = null;
 let currentIndex = 1;
+let tagPadding = 4;
 let objId = 1;
 
 export function getId(){
@@ -52,6 +53,25 @@ export function wrapperEvents(obj, machList=[]){
             target.childNode.set({
                 left:boundingRect.left + boundingRect.width/2 - target.childNode.width/2,
                 top:boundingRect.top + boundingRect.height + 10 
+            })
+        }
+        if ( target.tags && target.tags.length ){
+            // boundingBox.left + ( offsetX / 100 ) * boundingBox.width - textObj.width/2
+            target.tags.forEach(tag=>{
+                let textCenterX = boundingRect.left + ( tag.offsetX / 100) * boundingRect.width;
+                let textCenterY = boundingRect.top + ( tag.offsetY / 100 ) * boundingRect.height;
+                tag.set({
+                    left:textCenterX,
+                    top:textCenterY,
+                    angle:target.angle
+                });
+                if ( tag.bgObj ){
+                    tag.bgObj.set({
+                        left:textCenterX,
+                        top:textCenterY,
+                        angle:target.angle
+                    });      
+                }
             })
         }
         // 如果有绑定信息框对象，则对象变换时更新信息框的状态
@@ -83,7 +103,7 @@ export function initExports(obj){
             let extendObj = 
                 this.type === 'polyline' 
                 ?
-                { objId:this.objId, direc:this.direc, start:this.start ? this.start.objId : null, end:this.end ? this.end.objId : null, strokeLength:this.strokeLength  }
+                { objId:this.objId, start:this.start, end:this.end, opts:this.opts, strokeLength:this.strokeLength  }
                 :
                 this.type === 'text' 
                 ? 
@@ -489,8 +509,26 @@ export function updateTargetAttr(canvas, target, attrName, value ){
                 left:boundingRect.left + boundingRect.width/2 - target.childNode.width/2,
                 top:boundingRect.top + boundingRect.height + 10
             });
-            canvas.renderAll();
         }
+        if ( target.tags && target.tags.length ){
+            target.tags.forEach(tag=>{
+                let textCenterX = boundingRect.left + ( tag.offsetX / 100) * boundingRect.width;
+                let textCenterY = boundingRect.top + ( tag.offsetY / 100 ) * boundingRect.height;
+                tag.set({
+                    left:textCenterX,
+                    top:textCenterY,
+                    angle:target.angle
+                });
+                if ( tag.bgObj ){
+                    tag.bgObj.set({
+                        left:textCenterX,
+                        top:textCenterY,
+                        angle:target.angle
+                    });      
+                }
+            })
+        }
+        canvas.renderAll();
     } 
 }
 
@@ -498,24 +536,15 @@ function _delSingleTarget(canvas, target){
     if ( target.childNode ) {
         canvas.remove(target.childNode);
     }
-    if ( target.type === 'polyline' ) {
-        // 清除管道和管道相关联的模型对象
-        canvas.remove(target.pipePath);
-        if ( target.start && target.start.flowArr ) {
-            target.start.flowArr = target.start.flowArr.filter(i=>i.objId !== target.objId );
-        }
-        if ( target.end && target.end.flowArr ){
-            target.end.flowArr = target.end.flowArr.filter(i=>i.objId !== target.objId );
-        }
-    }
+    let graphObjs = canvas.getObjects().filter(i=>graphTypes.includes(i.type));
     if ( target.flowArr ) {
+
         // 清除挂载在模型上的所有关联管道
         target.flowArr.forEach(obj=>{
-            if ( obj.start && obj.start.flowArr ) {
-                obj.start.flowArr = obj.start.flowArr.filter(i=>i.objId !== obj.objId );
-            }
-            if ( obj.end && obj.end.flowArr ){
-                obj.end.flowArr = obj.end.flowArr.filter(i=>i.objId !== obj.objId );
+            let startObj = graphObjs.filter(i=>i.objId === obj.start);
+            let endObj = graphObjs.filter(i=>i.objId === obj.end);
+            if ( endObj.flowArr && endObj.flowArr.length ){
+                endObj.flowArr = endObj.flowArr.filter(i=>i.objId !== obj.objId);   
             }
             canvas.remove(obj.pipePath);
             canvas.remove(obj);
@@ -537,6 +566,74 @@ export function delTarget(canvas, currentTarget){
         canvas.renderAll();
     }
 }
+
+export function addLabel(canvas, target, opts, updateIndex, isDelete){
+    let { text, fontSize, fontColor, hasBg, bgType, bgColor, offsetX, offsetY } = opts;
+    if ( updateIndex !== null && target.tags ) {
+        target.tags = target.tags.filter((tag, index)=>{
+            if ( index === updateIndex ){
+                if ( tag.bgObj ){
+                    canvas.remove(tag.bgObj);
+                }
+                canvas.remove(tag);
+            }
+            return index !== updateIndex
+        });
+        if ( isDelete ) {
+            return;
+        }
+    }
+    let boundingBox = target.getBoundingRect();
+    let centerX = boundingBox.left + ( offsetX / 100 ) * boundingBox.width;
+    let centerY = boundingBox.top + ( offsetY / 100 ) * boundingBox.height;
+    let textObj = new fabric.Text(text, { fontSize, fill:fontColor, evented:false, originX:'center', originY:'center', left:centerX, top:centerY, angle:target.angle });
+    textObj.selectable = false;
+    textObj.hasBg = hasBg;
+    textObj.bgType = bgType;
+    textObj.bgColor = bgColor;
+    textObj.offsetX = offsetX;
+    textObj.offsetY = offsetY;
+    let bgObj;
+    if ( hasBg ) {
+        if ( bgType === 'Rect') {
+            bgObj = new fabric.Rect({
+                width:textObj.width + 2 * tagPadding,
+                height:textObj.height + 2 * tagPadding,
+                left:centerX,
+                top:centerY,
+                originX:'center',
+                originY:'center',
+                angle:target.angle,
+                fill:bgColor,
+                evented:false,
+            })
+        } else if ( bgType === 'Circle') {
+            let radius = textObj.width/ 2 + tagPadding;
+            bgObj = new fabric.Circle({
+                left:centerX,
+                top:centerY,
+                originX:'center',
+                originY:'center',
+                angle:target.angle,
+                radius:textObj.width/2 + tagPadding,
+                fill:bgColor,
+                evented:false,
+            })
+        }
+    } 
+    if ( bgObj ){
+        bgObj.selectable = false;
+        textObj.bgObj = bgObj;
+        canvas.add(bgObj);
+    }
+    canvas.add(textObj);
+    if ( !target.tags ) {
+        target.tags = [textObj];
+    } else {
+        target.tags.push(textObj);
+    }
+}
+
 export let initGraphAttr = { text:'', fontSize:14, fontColor:'#000000', width:0, height:0, radius:0, rx:0, ry:0, scaleX:1, scaleY:1, angle:0, fill:'#cccccc', stroke:'#000000', strokeWidth:1 }
 export function getBasicAttrs(target){
     let textObj = target.childNode, text = '', fontSize = 14, fontColor = '#000000';

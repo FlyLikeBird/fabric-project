@@ -139,11 +139,10 @@ html, body {
     padding:0 1rem;
 }
 .attr-container .attr-modal.small {
-    height:260px;
-    width:160%;
+    height:200px;
 }
 .attr-container .attr-modal.small .attr-modal-content {
-    height:220px;
+    height:160px;
 }
 
 /* 外部控件样式 */
@@ -198,19 +197,19 @@ html, body {
 .attr-modal .attr-item-wrapper .attr-item-control {
     width:76%;
 }
-.attr-modal .attr-item-wrapper :global(.ant-input){
+.attr-container .attr-item-wrapper .attr-modal :global(.ant-input){
     border:1px solid rgba(0, 0, 0, 0.15);
     color:rgba(0, 0, 0, 0.65);
 }
-.attr-modal .attr-item-wrapper :global(.ant-input-number){
+.attr-container .attr-item-wrapper .attr-modal :global(.ant-input-number){
     border:1px solid rgba(0, 0, 0, 0.15);
     color:rgba(0, 0, 0, 0.65);
 }
-.attr-modal .attr-item-wrapper :global(.ant-select) :global(.ant-select-selector) {
+.attr-container .attr-item-wrapper .attr-modal  :global(.ant-select) :global(.ant-select-selector) {
     border:1px solid rgba(0, 0, 0, 0.15);
     color:rgba(0, 0, 0, 0.65);
 }
-.attr-modal .attr-item-wrapper :global(.ant-select) :global(.ant-select-arrow) {
+.attr-container .attr-item-wrapper .attr-modal :global(.ant-select) :global(.ant-select-arrow) {
     color:rgba(0, 0, 0, 0.65);
 }
 /* ------ */
@@ -228,6 +227,7 @@ html, body {
     border-bottom:1px solid rgba(0, 0, 0, 0.15);
     padding-bottom:4px;
     cursor: pointer;
+    position:relative;
 }
 
 .list-container .list-item-wrapper .list-item:hover {

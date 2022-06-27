@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Input, Select, message, Divider, Tag, Popover, InputNumber, Slider } from 'antd';
-import { CheckCircleFilled } from '@ant-design/icons';
-import { updateTargetAttr, updateTextAttr, getBasicAttrs,  graphs, graphTypes, connectModels } from './util';
+import { Button, Input, Select, message, Divider, Tag, Popover, InputNumber, Slider, Checkbox } from 'antd';
+import { CheckCircleFilled, ApiOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { updateTargetAttr, updateTextAttr, getBasicAttrs,  graphs, graphTypes, connectModels, addLabel, delLabel } from './util';
 import style from './index.css';
 const { Option } = Select;
 let timer = null;
@@ -14,7 +14,8 @@ let posList = [{ title:'左侧', key:'left'}, { title:'顶部', key:'top'}, { ti
     }
 */
 let defaultOpts = { entryDirec:'right', entryOffset:50, outputDirec:'left', outputOffset:50, pipeWidth:14, pipeColor:'#0c325a', flowWidth:6, flowColor:'#04a3fe' };
-let bgTypes = [{ key:'Circle'}, { key:'Rect'}]
+let bgTypes = [{ key:'Circle', title:'圆形'}, { key:'Rect', title:'矩形'}];
+let defaultLabel = { text:'标注文本', fontSize:12, fontColor:'#ffffff', offsetX:50, offsetY:50, hasBg:true, bgType:'Rect', bgColor:'#1890ff' };
 let isAll = false;
 function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, machList, onChangeAttr }){
     let [selectedIds, setSelectedIds] = useState([]);
@@ -23,7 +24,6 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
     let [visible, setVisible] = useState(false);
     let [labelVisible, setLabelVisible] = useState(false);
     let [labelList, setLabelList] = useState([]);
-    let [selectedLabels, setSelectedLabels] = useState([]);
     useEffect(()=>{
         return ()=>{
             clearTimeout(timer);
@@ -50,12 +50,17 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
             });
             setOptList(temp);
             if ( currentTarget.tags && currentTarget.tags.length ){
-                
+                let newArr = currentTarget.tags.map(tag=>{
+                    let { hasBg, bgType, bgColor, offsetX, offsetY } = tag;
+                    return { text:tag.text, fontSize:tag.fontSize, fontColor:tag.fill, hasBg, bgType, bgColor, offsetX, offsetY };
+                });
+                setLabelList(newArr);
             } else {
-                setLabelList([
-                    { text:'标注1', fontSize:14, fontColor:'#ffffff', hasBg:true, bgType:'Circle', bgColor:'#1890ff' },
-                    { text:'标注2', fontSize:14, fontColor:'#ffffff', hasBg:true, bgType:'Circle', bgColor:'#1890ff' }
-                ])
+                setLabelList([]);
+                // setLabelList([
+                //     { text:'标注1', fontSize:14, fontColor:'#ffffff', hasBg:true, bgType:'Circle', bgColor:'#1890ff' },
+                //     { text:'标注2', fontSize:14, fontColor:'#ffffff', hasBg:true, bgType:'Circle', bgColor:'#1890ff' }
+                // ])
             }
         }
     },[currentTarget]);
@@ -90,9 +95,30 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
             message.info('请选择要连接或断开的对象')
         }
     };
-    let handleLabel = ()=>{
-        
+    let handleAddLabel = ()=>{
+        if ( labelList.length === 2 ) {
+            message.info('最多添加两个标签');
+        } else {
+            let newArr = [...labelList];
+            let labelOpt = { ...defaultLabel };
+            newArr.push(labelOpt);
+            setLabelList(newArr);
+            addLabel(canvas, currentTarget, labelOpt, null, false );
+        }
     }
+    let handleUpdateLabel = (index, attr, value)=>{
+        let newOpts;
+        let newArr = labelList.map((item,j)=>{
+            if ( index === j ) {
+                item[attr] = value;
+                newOpts = item;
+            }
+            return item;
+        });
+        setLabelList(newArr);
+        addLabel(canvas, currentTarget, newOpts, index, false);
+    }
+    
     return (
         <div className={style['attr-container']}>
             {/* 绑定数据源 */}
@@ -210,7 +236,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                                     }
                                 </div>
                                 :
-                                <div>没有可连接的对象</div>
+                                <div style={{ fontSize:'1.2rem', color:'rgba(0, 0, 0, 0.65)', position:'absolute', top:'50%', left:'50%', transform:'translate(-50%, -50%)' }}><ApiOutlined />没有可连接的对象</div>
                             }
                         </div>
                         <div className={style['attr-modal-footer']}>
@@ -259,29 +285,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                     }
                 </Select>
             </div> */}
-            {/* <div className={style['attr-item-wrapper']}>
-                <span>连接方向:</span>
-                <Select  value={direc} onChange={value=>{
-                    setDirec(value);
-                    let temp = selectedModels.filter(i=>i.objId === selectedId)[0];
-                    let flowId = null;
-                    if ( temp ){
-                        if ( currentTarget.flowArr ) {
-                            let result = currentTarget.flowArr.filter(i=>i.end.objId === selectedId )[0];
-                            flowId = result ? result.objId : null;
-                        }
-                        connectModels(canvas, currentTarget, temp, value, flowId);
-                    } else {
-                        message.info('请选择要连接的模型对象');
-                    }
-                }}>
-                    {
-                        posList.map((item)=>(
-                            <Option key={item.key} value={item.key}>{ item.title }</Option>
-                        ))
-                    }
-                </Select>
-            </div> */}
+            
             <div className={style['attr-item-wrapper']}>
                 <span className={style['attr-item-label']}>模型标题:</span>
                 <div className={style['attr-item-control']}>
@@ -419,16 +423,31 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                                     labelList.map((item,index)=>(
                                         <div className={style['list-item-wrapper']} key={index}>
                                             <div className={style['list-item']}>
-                                                <div className={style['list-item-content']}>
-                                                    <Input />
-                                                    <InputNumber />
-                                                    <input type='color' value={attrInfo.fontColor} className={style['attr-input']} onChange={e=>{
-                                                        // onChangeAttr({ ...attrInfo, fontColor:e.target.value });
-                                                        // updateTextAttr(canvas, currentTarget, 'fontColor', e.target.value);                 
-                                                    }} />
+                                                <div style={{ position:'absolute', right:'6px', top:'50%', transform:'translateY(-50%)' }}>
+                                                    <CloseCircleOutlined style={{ fontSize:'1.2rem' }} onClick={e=>{
+                                                        e.stopPropagation();
+                                                        let newArr = labelList.filter((item,j)=> j !== index);
+                                                        setLabelList(newArr);
+                                                        addLabel(canvas, currentTarget, {}, index, true);
+                                                    }}/>
                                                 </div>
-                                                <div className={style['list-item-extra']}>
-                                                    
+                                                <div className={style['list-item-content']} style={{ padding:'0 2rem'}}>
+                                                    <Input style={{ width:'50%' }} value={item.text} onChange={e=>handleUpdateLabel(index, 'text', e.target.value)} />
+                                                    <InputNumber min={6} max={30} style={{ width:'30%' }} value={item.fontSize} onChange={value=>handleUpdateLabel(index, 'fontSize', value)} />
+                                                    <input style={{ width:'20%' }} type='color' value={item.fontColor} className={style['attr-input']} onChange={e=>handleUpdateLabel(index, 'fontColor', e.target.value )} />
+                                                </div>
+                                                <div className={style['list-item-extra']} style={{ padding:'0 2rem' }}>
+                                                    <Checkbox checked={item.hasBg} style={{ width:'20%' }} onChange={e=>handleUpdateLabel(index, 'hasBg', e.target.checked)}>背景</Checkbox>
+                                                    <InputNumber style={{ width:'15%'}} min={0} max={100} value={item.offsetX} onChange={value=>handleUpdateLabel(index, 'offsetX', value)} />
+                                                    <InputNumber style={{ width:'15%' }} min={0} max={100} value={item.offsetY} onChange={value=>handleUpdateLabel(index, 'offsetY', value) }/>
+                                                    <Select value={item.bgType} style={{ width:'30%' }} disabled={ item.hasBg ? false : true } onChange={value=>handleUpdateLabel(index, 'bgType', value)}>
+                                                        {
+                                                            bgTypes.map(item=>(
+                                                                <Option key={item.key} value={item.key}>{ item.title }</Option>
+                                                            ))
+                                                        }
+                                                    </Select>
+                                                    <input disabled={ item.hasBg ? false : true } style={{ width:'20%' }} type='color' value={item.bgColor} className={style['attr-input']} onChange={e=>handleUpdateLabel(index, 'bgColor', e.target.value)} />
                                                 </div>
                                             </div>
                                         </div>
@@ -437,10 +456,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                             </div>
                         </div>
                         <div className={style['attr-modal-footer']}>
-                            <div>
-                                <Button type='primary' style={{ marginRight:'6px' }} onClick={()=>handle}>添加</Button>
-                                <Button>删除</Button>
-                            </div>
+                            <Button type='primary' style={{ marginRight:'6px' }} onClick={()=>handleAddLabel()}>添加</Button>
                             <Button onClick={()=>setLabelVisible(false)}>关闭</Button>
                         </div>
                     </div>

@@ -25,6 +25,7 @@ function CustomPainter(){
         canvas = new fabric.Canvas('my-canvas',{
             backgroundColor:'#181e25',
             selection:true,
+            preserveObjectStacking:true,
             width:container.offsetWidth,
             height:container.offsetHeight - 34
         });
@@ -57,24 +58,24 @@ function CustomPainter(){
                         originX:'center',
                         originY:'center',
                         childNode:textObj,
-                        objId:id
+                        objId:id,
+                        canChecked:true
                     });
                     canvas.add(textObj);
                     canvas.add(oImg);
                     wrapperEvents(oImg, machList);
                     initExports(oImg);
                     initExports(textObj);
-                    
                     if ( currentTargetRef.current && currentTargetRef.current.type ) {
                         if ( currentTargetRef.current.type === 'activeSelection' ) {
                             // 当选取对象为集合时
-                            let childNodes = currentTargetRef.current._objects.filter( i => graphTypes.includes(i.type) );
+                            let childNodes = currentTargetRef.current._objects.filter( i => graphTypes.includes(i.type) && i.canChecked );
                             let childNodeIds = childNodes.map(i=>i.objId);
-                            let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type)).filter(i=>!childNodeIds.includes(i.objId));
+                            let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.canChecked ).filter(i=>!childNodeIds.includes(i.objId));
                             setAllModels(temp);
                         } else {
                             // 当选取对象为单个对象
-                            let temp = canvas.getObjects().filter(i=>graphTypes.includes(i.type)).filter(i=>i.objId !== currentTargetRef.current.objId);                            
+                            let temp = canvas.getObjects().filter(i=>graphTypes.includes(i.type) && i.canChecked ).filter(i=>i.objId !== currentTargetRef.current.objId);                            
                             setAllModels(temp);
                         }  
                     }
@@ -82,12 +83,13 @@ function CustomPainter(){
             } else {
                 // 基础图形区,
                 let id = getId();
-                let textObj = new fabric.Text(id + '-' + data.title, { fontSize:14, fill:'#ffffff' })
+                let textObj = new fabric.Text(id + '-' + data.title, { fontSize:14, fill:'#ffffff', evented:false })
                 textObj.objId = id;
                 textObj.set({   
                     top:e.offsetY + data.height / 2 + 10,
                     left:e.offsetX - textObj.width / 2,
                 });
+                textObj.selectable = false;
                 let graphObj = new fabric[data.type]({
                     ...data.attrs.reduce((sum, cur)=>{
                         sum[cur.attrKey] = cur.attrValue;
@@ -100,7 +102,8 @@ function CustomPainter(){
                     objId:id,
                     originX:'center',
                     originY:'center',
-                    childNode:textObj
+                    childNode:textObj,
+                    canChecked:true
                 });
                 canvas.add(textObj);
                 canvas.add(graphObj);
@@ -108,25 +111,26 @@ function CustomPainter(){
                 initExports(graphObj);
                 initExports(textObj);
                 // 当新模型拖入绘图区，更新可连接对象列表
-                // if ( currentTargetRef.current && currentTargetRef.current.type ) {
-                //     if ( currentTargetRef.current.type === 'activeSelection' ) {
-                //         // 当选取对象为集合时
-                //         let childNodes = currentTargetRef.current._objects.filter( i => graphTypes.includes(i.type) );
-                //         let childNodeIds = childNodes.map(i=>i.objId);
-                //         let selectedModels = canvas.getObjects().filter(i=> graphTypes.includes(i.type)).filter(i=>!childNodeIds.includes(i.objId));
-                //         setSelectedModels(selectedModels);
-                //     } else {
-                //         // 当选取对象为单个对象
-                //         let temp = canvas.getObjects().filter(i=>graphTypes.includes(i.type)).filter(i=>i.objId !== currentTargetRef.current.objId);                            
-                //         setSelectedModels(temp);
-                //     }  
-                // }
+                if ( currentTargetRef.current && currentTargetRef.current.type ) {
+                    if ( currentTargetRef.current.type === 'activeSelection' ) {
+                        // 当选取对象为集合时
+                        let childNodes = currentTargetRef.current._objects.filter( i => graphTypes.includes(i.type) && i.canChecked );
+                        let childNodeIds = childNodes.map(i=>i.objId);
+                        let selectedModels = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.canChecked ).filter(i=>!childNodeIds.includes(i.objId));
+                        setAllModels(selectedModels);
+                    } else {
+                        // 当选取对象为单个对象
+                        let temp = canvas.getObjects().filter(i=>graphTypes.includes(i.type) && i.canChecked ).filter(i=>i.objId !== currentTargetRef.current.objId);                            
+                        setAllModels(temp);
+                    }  
+                }
             } 
         });
         // 监听对象的属性，如有变动更新右侧的属性面板,更新管道信息
         canvas.on('object:modified', ({ target })=>{
             setAttrInfo(getBasicAttrs(target));
-            let allModels = canvas.getObjects().filter(i=>graphTypes.includes(i.type));
+            console.log(target);
+            let allModels = canvas.getObjects().filter(i=>graphTypes.includes(i.type) && i.canChecked );
             if ( target.flowArr && target.flowArr.length ) {
                 target.flowArr.forEach(obj=>{
                     let startObj = allModels.filter(i=>i.objId === obj.start )[0];
@@ -138,7 +142,7 @@ function CustomPainter(){
         canvas.on('selection:created',({ selected })=>{
             let selection = canvas.getActiveObject();
             if ( selection.type === 'activeSelection' && selection._objects.length ) {
-                let childNodes = selection._objects.filter( i => graphTypes.includes(i.type) );
+                let childNodes = selection._objects.filter( i => graphTypes.includes(i.type) && i.canChecked );
                 let childNodeIds = childNodes.map(i=>i.objId);
                 let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && !childNodeIds.includes(i.objId));
                 setAllModels(temp);
@@ -152,7 +156,7 @@ function CustomPainter(){
                     // 按住ALT键拖动复制选中的对象，只能复制模型对象
                     cloneModel(canvas, target, pointer, obj=>setCurrentTarget(obj), (arr)=>setAllModels(arr));
                 } else {
-                    let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.objId !== target.objId);
+                    let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.canChecked && i.objId !== target.objId);
                     setAllModels(temp);
                     setCurrentTarget(target);                          
                 }
