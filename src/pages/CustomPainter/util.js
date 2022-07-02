@@ -49,12 +49,16 @@ export function wrapperEvents(obj, machList=[]){
     function handleTransform({ e, pointer, transform }){
         let { target } = transform;
         let boundingRect = target.getBoundingRect();
+        console.log(boundingRect);
+        console.log(target.canvas.viewportTransform);
+        
         if ( target.childNode ){
             target.childNode.set({
                 left:boundingRect.left + boundingRect.width/2 - target.childNode.width/2,
                 top:boundingRect.top + boundingRect.height + 10 
-            })
+            });
         }
+        
         if ( target.tags && target.tags.length ){
             // boundingBox.left + ( offsetX / 100 ) * boundingBox.width - textObj.width/2
             target.tags.forEach(tag=>{
@@ -74,6 +78,7 @@ export function wrapperEvents(obj, machList=[]){
                 }
             })
         }
+        target.canvas.renderAll();
         // 如果有绑定信息框对象，则对象变换时更新信息框的状态
     }
     function handleMouseOver({ e, target }){

@@ -42,13 +42,6 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
             } else {
                 setMachId(0);
             }
-            let flowArr = currentTarget.flowArr || [];
-            let modelList = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.objId !== currentTarget.objId);
-            let temp = modelList.map(model=>{
-                let result = flowArr.filter(i=>i.end === model.objId )[0];
-                return result ? result.opts : { ...defaultOpts};
-            });
-            setOptList(temp);
             if ( currentTarget.tags && currentTarget.tags.length ){
                 let newArr = currentTarget.tags.map(tag=>{
                     let { hasBg, bgType, bgColor, offsetX, offsetY } = tag;
@@ -64,7 +57,14 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
             }
         }
     },[currentTarget]);
-    
+    useEffect(()=>{
+        let flowArr = currentTarget.flowArr || [];
+        let temp = allModels.map(model=>{
+            let result = flowArr.filter(i=>i.end === model.objId )[0];
+            return result ? result.opts : { ...defaultOpts};
+        });
+        setOptList(temp);
+    },[allModels])
     let selectedMachs = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.objId !== currentTarget.objId ).map(i=>i.machId);
     let handleOpts = (index, key, value )=>{
         let newArr = optList.map((item, j)=>{
@@ -118,7 +118,6 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
         setLabelList(newArr);
         addLabel(canvas, currentTarget, newOpts, index, false);
     }
-    
     return (
         <div className={style['attr-container']}>
             {/* 绑定数据源 */}
@@ -219,13 +218,13 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                                                                     <InputNumber size='small' disabled={ isSelected ? false : true } min={0} max={30} value={opts.pipeWidth} onChange={value=>handleOpts(index, 'pipeWidth', value)} />
                                                                 </div>
                                                                 <div style={{ width:'20%' }}>
-                                                                    <input type='color' disabled={ isSelected ? false : true } className={style['attr-input']} value={opts.pipeColor} onChange={value=>handleOpts(index, 'pipeColor', value)}/>
+                                                                    <input type='color' disabled={ isSelected ? false : true } className={style['attr-input']} value={opts.pipeColor} onChange={e=>handleOpts(index, 'pipeColor', e.target.value)}/>
                                                                 </div>
                                                                 <div style={{ width:'30%' }}>
                                                                     <InputNumber size='small' disabled={ isSelected ? false : true } min={0} max={30} value={opts.flowWidth} onChange={value=>handleOpts(index, 'flowWidth', value)}/>
                                                                 </div>
                                                                 <div style={{ width:'20%' }}>
-                                                                    <input type='color' disabled={ isSelected ? false : true } className={style['attr-input']} value={opts.flowColor} onChange={value=>handleOpts(index, 'flowColor', value)} />
+                                                                    <input type='color' disabled={ isSelected ? false : true } className={style['attr-input']} value={opts.flowColor} onChange={e=>handleOpts(index, 'flowColor', e.target.value)} />
                                                                 </div>
                                                             </div>
                                                         </div>                                             

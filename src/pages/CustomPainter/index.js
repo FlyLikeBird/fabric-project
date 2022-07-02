@@ -1,14 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Radio, Button } from 'antd';
 import { ToTopOutlined, ClearOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
-import { fabric } from 'fabric';
+import { fabric } from '../fabric';
 import { initGraphAttr, initMachList, graphs, graphTypes, basicGraphs, createGrid, airMachList, getBasicAttrs, getId, load, initExports, savePaint, cloneModel, wrapperEvents, connectModels, delTarget } from './util';
 import BasicGraphAttrContainer from './BasicGraphAttrContainer';
 import SelectionAttrContainer from './SelectionAttrContainer';
 import PipeAttrContainer from './PipeAttrContainer';
 import style from './index.css';
 let canvas = null;
-
+let isDragging = false;
+let clickX = 0, clickY = 0;
+let prevMatrix = [];
 function CustomPainter(){
     let [currentTarget, setCurrentTarget] = useState(null);
     let [attrInfo, setAttrInfo] = useState(initGraphAttr);
@@ -47,13 +49,13 @@ function CustomPainter(){
                     let textObj = new fabric.Text(id + '-' + data.title, { fontSize:14, fill:'#ffffff', evented:false } );
                     textObj.objId = id;
                     textObj.set({
-                        top:e.offsetY + oImg.height / 2 + 10,
+                        top: e.offsetY + oImg.height / 2 + 10,
                         left:e.offsetX - textObj.width / 2,
                     });
                     textObj.selectable = false;
                     oImg.sourcePath = data.path;
                     oImg.set({
-                        left:e.offsetX,
+                        left: e.offsetX,
                         top:e.offsetY,
                         originX:'center',
                         originY:'center',
@@ -84,6 +86,13 @@ function CustomPainter(){
                 // 基础图形区,
                 let id = getId();
                 let textObj = new fabric.Text(id + '-' + data.title, { fontSize:14, fill:'#ffffff', evented:false })
+                // 考虑到视图矩阵viewportTransform的影响，修正定位坐标
+                let viewportMatrix = canvas.viewportTransform;
+                let prevPos = { x:e.offsetX, y:e.offsetY };
+                // let afterPoint = fabric.util.transformPoint(prevPos, fabric.util.invertTransform(canvas.viewportTransform));
+                let afterPoint = fabric.util.transformPoint(prevPos, viewportMatrix);
+                console.log(prevPos);
+                console.log(afterPoint);
                 textObj.objId = id;
                 textObj.set({   
                     top:e.offsetY + data.height / 2 + 10,
@@ -105,10 +114,21 @@ function CustomPainter(){
                     childNode:textObj,
                     canChecked:true
                 });
+                console.log(graphObj.width, graphObj.height);
                 canvas.add(textObj);
                 canvas.add(graphObj);
                 wrapperEvents(graphObj, machList);
                 initExports(graphObj);
+               
+                // setTimeout(()=>{
+                //     console.log('1---');
+                //     canvas.setViewportTransform([1, 0 , 0, 1, 100, 75]);                    
+                //     setTimeout(()=>{
+                //         console.log('2---');
+                //         canvas.zoomToPoint({ x:e.offsetX + 100 , y:e.offsetY + 75 }, 2);
+                        
+                //     },2000)
+                // },2000)
                 initExports(textObj);
                 // 当新模型拖入绘图区，更新可连接对象列表
                 if ( currentTargetRef.current && currentTargetRef.current.type ) {
@@ -129,7 +149,6 @@ function CustomPainter(){
         // 监听对象的属性，如有变动更新右侧的属性面板,更新管道信息
         canvas.on('object:modified', ({ target })=>{
             setAttrInfo(getBasicAttrs(target));
-            console.log(target);
             let allModels = canvas.getObjects().filter(i=>graphTypes.includes(i.type) && i.canChecked );
             if ( target.flowArr && target.flowArr.length ) {
                 target.flowArr.forEach(obj=>{
@@ -151,6 +170,8 @@ function CustomPainter(){
         });       
         canvas.on('mouse:down',function(option){
             let { e, target, pointer } = option; 
+            console.log(e);
+            console.log(target);
             if ( target && graphTypes.includes(target.type) ){
                 if ( e.altKey ){
                     // 按住ALT键拖动复制选中的对象，只能复制模型对象
@@ -158,11 +179,75 @@ function CustomPainter(){
                 } else {
                     let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.canChecked && i.objId !== target.objId);
                     setAllModels(temp);
-                    setCurrentTarget(target);                          
+                    setCurrentTarget(target);    
+                    console.log(target);
                 }
             }      
         });
-
+        // 监听全局的拖动和缩放事件
+        
+        console.log(canvas);
+        canvas.on('mouse:wheel',({ e })=>{
+            let delta = e.deltaY;
+            if ( e.altKey ){
+                let zoom = canvas.getZoom();
+                if ( delta < 0 ) {
+                    zoom += 0.1;
+                }
+                if ( delta > 0 ){
+                    zoom -= 0.1;
+                }
+                if ( zoom > 20 ) zoom = 20;
+                if ( zoom < 0.1 ) zoom = 0.1;
+                canvas.zoomToPoint({
+                    x:e.offsetX,
+                    y:e.offsetY
+                },zoom)
+            }      
+        })
+        document.addEventListener('keydown', (e)=>{
+            if ( !isDragging && ( e.keyCode === 32 || e.which === 32 )) {
+                canvas.selection = false;
+                canvas.defaultCursor = 'grab';
+                // canvas.set({ selectable:false, anchor:'grab' });
+                var handleMouseMove = ({ e, pointer })=>{
+                    // console.log(e);
+                    let offsetX = pointer.x - clickX;
+                    let offsetY = pointer.y - clickY;
+                    // canvas.viewportTransform = [1, 0, 0, 1, prevMatrix[4] + offsetX, prevMatrix[5] + offsetY];  
+                    canvas.setViewportTransform([prevMatrix[0], 0, 0, prevMatrix[3], prevMatrix[4] + offsetX, prevMatrix[5] + offsetY]);                
+                    // canvas._objects.forEach(obj=>{                        
+                    //     obj.set({ left:obj.initLeft + offsetX , top:obj.initTop + offsetY });
+                    // });
+                    canvas.renderAll();
+                }
+                var handleMouseDown = ({ e, pointer })=>{
+                    clickX = pointer.x;
+                    clickY = pointer.y;
+                    prevMatrix = canvas.viewportTransform;
+                    // canvas._objects.forEach(obj=>{
+                    //     obj.initLeft = obj.left;
+                    //     obj.initTop = obj.top;
+                    // });
+                    canvas.on('mouse:move', handleMouseMove);
+                    canvas.on('mouse:up', ()=>{
+                        canvas.off('mouse:move', handleMouseMove);
+                    })
+                }
+                canvas.on('mouse:down', handleMouseDown);
+                isDragging = true;   
+                document.addEventListener('keyup', ()=>{
+                    isDragging = false;
+                    canvas.selection = true;
+                    canvas.defaultCursor = 'default';
+                    clickX = 0;
+                    clickY = 0;
+                    prevMatrix = [];  
+                    canvas.off('mouse:down', handleMouseDown);
+                })             
+            }
+        })
+       
         return ()=>{
         }  
     },[]);

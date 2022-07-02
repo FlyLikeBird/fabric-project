@@ -950,6 +950,18 @@ fabric.CommonMethods = {
      * @param {Array} t The transform
      * @return {Array} The inverted transform
      */
+    //  transformPoint: function(p, t, ignoreOffset) {
+    //     if (ignoreOffset) {
+    //       return new fabric.Point(
+    //         t[0] * p.x + t[2] * p.y,
+    //         t[1] * p.x + t[3] * p.y
+    //       );
+    //     }
+    //     return new fabric.Point(
+    //       t[0] * p.x + t[2] * p.y + t[4],
+    //       t[1] * p.x + t[3] * p.y + t[5]
+    //     );
+    //   },
     invertTransform: function(t) {
       var a = 1 / (t[0] * t[3] - t[1] * t[2]),
           r = [a * t[3], -a * t[1], -a * t[2], a * t[0]],
@@ -9481,12 +9493,17 @@ fabric.ElementsParser = function(elements, callback, options, reviver, parsingOp
      * @chainable true
      */
     zoomToPoint: function (point, value) {
+        // 只是改变比例，保留其他变换
       // TODO: just change the scale, preserve other transformations
       var before = point, vpt = this.viewportTransform.slice(0);
       point = transformPoint(point, invertTransform(this.viewportTransform));
+        // point = transformPoint(point, vpt);
+    //   console.log(invertTransform(this.viewportTransform));
       vpt[0] = value;
       vpt[3] = value;
       var after = transformPoint(point, vpt);
+    //   console.log(after);
+    //   console.log('----');
       vpt[4] += before.x - after.x;
       vpt[5] += before.y - after.y;
       return this.setViewportTransform(vpt);
@@ -17094,6 +17111,11 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
           finalMatrix = multiplyMatrices(translateMatrix, rotateMatrix),
           dim = this._getTransformedDimensions(),
           w = dim.x / 2, h = dim.y / 2;
+        //   console.log(rotateMatrix);
+        //   console.log(translateMatrix);
+        //   console.log(finalMatrix);
+        //   console.log(dim);
+
       return {
         // corners
         tl: transformPoint({ x: -w, y: -h }, finalMatrix),
