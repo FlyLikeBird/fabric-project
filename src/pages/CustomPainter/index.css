@@ -47,7 +47,21 @@ html, body {
     left:0;
     height:90%;
     z-index:2;
+    transition:left 0.3s ease-in;
 }
+.hide-btn {
+    position:absolute;
+    bottom:7%;
+    padding:6px 10px;
+    background:rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+    z-index:10;
+}
+.hide-btn :global(.anticon) {
+    font-size:1.2rem;
+    color:rgba(255, 255, 255, 0.75);
+}
+
 .model-item {
     padding:0.5rem;
     border-bottom:1px solid #4e5257;
@@ -84,7 +98,7 @@ html, body {
 }
 /* 属性区样式 */
 .attr-container {
-    width:16%;
+    width:18%;
     background-color:#353a40;
     color:rgba(255, 255, 255, 0.85);
     position:absolute;
@@ -92,6 +106,7 @@ html, body {
     top:5%;
     height:90%;
     right:0;
+    transition:left 0.3s ease-in;
 }
 
 .attr-container .attr-item-wrapper {
@@ -177,13 +192,13 @@ html, body {
     width:100%;
 }
 .attr-container .attr-item-wrapper :global(.ant-slider) :global(.ant-slider-rail) {
-    background-color:#161718;
+    background-color:#161718 !important;
 }
 .attr-container .attr-item-wrapper :global(.ant-slider) :global(.ant-slider-track) {
-    background-color:#1890ff;
+    background-color:#1890ff !important;
 }
 .attr-container .attr-item-wrapper :global(.ant-slider) :global(.ant-slider-handle) {
-    border:2px solid #1890ff;
+    border:2px solid #1890ff !important;
 }
 /* ----- */
 /* modal组件内部控件样式 */
@@ -257,4 +272,24 @@ html, body {
     padding:2px 10px;
     color:#fff;
     border-radius:2px;
+}
+
+/* 自定义鼠标右键菜单项 */
+.custom-contextmenu {
+    display:none;
+    position:absolute;
+    z-index:10;
+    list-style:none;
+    padding:0;
+    background: rgba(255, 255, 255, 0.15);
+    color: rgba(255 ,255, 255, 0.65);
+}
+
+.custom-contextmenu > li {
+    padding:4px 14px;
+    cursor: pointer;
+}
+
+.custom-contextmenu > li:hover {
+    background: rgba(255, 255, 255, 0.25);
 }

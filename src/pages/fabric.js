@@ -16425,6 +16425,7 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
       }
 
       offsetY = toOriginY - fromOriginY;
+    //   console.log(offsetX, offsetY);
       if (offsetX || offsetY) {
         dim = this._getTransformedDimensions();
         x = point.x + offsetX * dim.x;
@@ -16433,7 +16434,7 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
 
       return new fabric.Point(x, y);
     },
-
+    
     /**
      * Translates the coordinates from origin to center coordinates (based on the object's dimensions)
      * @param {fabric.Point} point The point which corresponds to the originX and originY params
@@ -16468,7 +16469,7 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
      * Returns the real center coordinates of the object
      * @return {fabric.Point}
      */
-    getCenterPoint: function() {
+    getCenterPoint: function() {        
       var leftTop = new fabric.Point(this.left, this.top);
       return this.translateToCenterPoint(leftTop, this.originX, this.originY);
     },
@@ -16537,7 +16538,7 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
     setPositionByOrigin: function(pos, originX, originY) {
       var center = this.translateToCenterPoint(pos, originX, originY),
           position = this.translateToOriginPoint(center, this.originX, this.originY);
-      this.set('left', position.x);
+        this.set('left', position.x);
       this.set('top', position.y);
     },
 
@@ -17111,6 +17112,7 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
           finalMatrix = multiplyMatrices(translateMatrix, rotateMatrix),
           dim = this._getTransformedDimensions(),
           w = dim.x / 2, h = dim.y / 2;
+        //   console.log(this.getCenterPoint());
         //   console.log(rotateMatrix);
         //   console.log(translateMatrix);
         //   console.log(finalMatrix);
@@ -19400,11 +19402,12 @@ fabric.util.object.extend(fabric.Object.prototype, /** @lends fabric.Object.prot
     },
 
     _setPositionDimensions: function(options) {
-      var calcDim = this._calcDimensions(options), correctLeftTop,
+        var calcDim = this._calcDimensions(options), correctLeftTop,
           correctSize = this.exactBoundingBox ? this.strokeWidth : 0;
       this.width = calcDim.width - correctSize;
       this.height = calcDim.height - correctSize;
-      console.log(calcDim);
+        console.log(calcDim);
+        
       if (!options.fromSVG) {
         correctLeftTop = this.translateToGivenOrigin(
           {
@@ -19417,7 +19420,6 @@ fabric.util.object.extend(fabric.Object.prototype, /** @lends fabric.Object.prot
           this.originX,
           this.originY
         );
-        console.log(correctLeftTop);
       }
       if (typeof options.left === 'undefined') {
         this.left = options.fromSVG ? calcDim.left : correctLeftTop.x;

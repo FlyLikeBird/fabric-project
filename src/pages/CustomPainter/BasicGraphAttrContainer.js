@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Input, Select, message, Divider, Tag, Popover, InputNumber, Slider, Checkbox } from 'antd';
-import { CheckCircleFilled, ApiOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, ApiOutlined, CloseCircleOutlined, DoubleLeftOutlined, DoubleRightOutlined } from '@ant-design/icons';
 import { updateTargetAttr, updateTextAttr, getBasicAttrs,  graphs, graphTypes, connectModels, addLabel, delLabel } from './util';
 import style from './index.css';
 const { Option } = Select;
@@ -24,6 +24,7 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
     let [visible, setVisible] = useState(false);
     let [labelVisible, setLabelVisible] = useState(false);
     let [labelList, setLabelList] = useState([]);
+    let [hide, setHide] = useState(false);
     useEffect(()=>{
         return ()=>{
             clearTimeout(timer);
@@ -119,7 +120,8 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
         addLabel(canvas, currentTarget, newOpts, index, false);
     }
     return (
-        <div className={style['attr-container']}>
+        <div className={style['attr-container']} style={{ right:hide ? '-18%' : '0' }}>
+            <div className={style['hide-btn']} onClick={()=>setHide(!hide)} style={{ left: hide ? '-36px' : '0' }}>{ hide ? <DoubleLeftOutlined /> : <DoubleRightOutlined /> }</div>
             {/* 绑定数据源 */}
             <div className={style['attr-item-wrapper']}>
                 <span className={style['attr-item-label']}>绑定电表:</span>
@@ -354,10 +356,10 @@ function BasicGraphAttrContainer({ canvas, currentTarget, attrInfo, allModels, m
                 <div className={style['attr-item-wrapper']}>
                     <span className={style['attr-item-label']}>描边宽度:</span>
                     <div className={style['attr-item-control']}>
-                        <input type='range' min={0} max={10} value={attrInfo.strokeWidth} className={style['attr-input']} onChange={e=>{
-                            onChangeAttr({ ...attrInfo, strokeWidth:e.target.value });
-                            updateTargetAttr(canvas, currentTarget, 'strokeWidth', Number(e.target.value) );
-                        }} />
+                        <Slider min={0} max={10} value={attrInfo.strokeWidth} step={1} onChange={value=>{
+                            onChangeAttr({ ...attrInfo, strokeWidth:value });
+                            updateTargetAttr(canvas, currentTarget, 'strokeWidth', value)
+                        }}/>
                     </div>    
                 </div>
                 :

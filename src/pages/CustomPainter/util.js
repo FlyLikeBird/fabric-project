@@ -1,3 +1,4 @@
+import { fabric } from '../fabric';
 import img1 from '../../../public/1.png';
 import img2 from '../../../public/2.png';
 import img3 from '../../../public/3.png';
@@ -36,8 +37,7 @@ for ( let i=0;i<10;i++ ){
         ]
     })
 }
-let pathObj = null;
-let currentIndex = 1;
+
 let tagPadding = 4;
 let objId = 1;
 
@@ -48,13 +48,10 @@ export function getId(){
 export function wrapperEvents(obj, machList=[]){
     function handleTransform({ e, pointer, transform }){
         let { target } = transform;
-        let boundingRect = target.getBoundingRect();
-        console.log(boundingRect);
-        console.log(target.canvas.viewportTransform);
-        
+        let boundingRect = target.getBoundingRect(true);
         if ( target.childNode ){
             target.childNode.set({
-                left:boundingRect.left + boundingRect.width/2 - target.childNode.width/2,
+                left:boundingRect.left + boundingRect.width/2 ,
                 top:boundingRect.top + boundingRect.height + 10 
             });
         }
@@ -108,13 +105,19 @@ export function initExports(obj){
             let extendObj = 
                 this.type === 'polyline' 
                 ?
-                { objId:this.objId, start:this.start, end:this.end, opts:this.opts, strokeLength:this.strokeLength  }
+                { objId:this.objId, start:this.start, end:this.end, opts:this.opts }
                 :
                 this.type === 'text' 
                 ? 
                 { objId:this.objId }
                 :
-                { objId:this.objId, sourcePath:this.sourcePath, flowArr:this.flowArr && this.flowArr.length ? this.flowArr.map(i=>i.objId) : null } 
+                { 
+                    objId:this.objId, 
+                    canChecked:this.canChecked,
+                    sourcePath:this.sourcePath, 
+                    flowArr:this.flowArr && this.flowArr.length ? this.flowArr.map(i=>i.objId) : null, 
+                    tags:this.tags && this.tags.length ? this.tags.map(i=>i.objId) : null,
+                } 
             return fabric.util.object.extend(toObject.call(this), extendObj);
         }
     })(obj.toObject)
@@ -133,8 +136,8 @@ export function connectModels( canvas, sourceObj, targetObj, opts, flowId, isDel
 }
 
 function _connectFromSourceToTarget(canvas, sourceObj, targetObj, opts, flowId, isDelete){
-    let sourceRect = sourceObj.getBoundingRect();
-    let targetRect = targetObj.getBoundingRect();
+    let sourceRect = sourceObj.getBoundingRect(true);
+    let targetRect = targetObj.getBoundingRect(true);
     let { entryDirec, entryOffset, outputDirec, outputOffset, pipeWidth, pipeColor, flowWidth, flowColor } = opts;
     if ( sourceObj.group ){
         // 将组合中模型对象的相对定位转换成绝对定位
@@ -253,6 +256,7 @@ function _connectFromSourceToTarget(canvas, sourceObj, targetObj, opts, flowId, 
         hasControls:false,
         evented:false
     });
+    opts.strokeLength = strokeLength;
     flowPath.opts = opts;
     flowPath.pipePath = pipePath;
     flowPath.start = sourceObj.objId;
@@ -312,81 +316,149 @@ function startMotion(canvas, flowPath){
         onComplete:()=>startMotion(canvas, flowPath)
     });
 }
-// export function createPath({ canvas, pointer }){
-//     if ( !pathObj ){
-//         // pathObj临时存储鼠标绘制的points, 等所有点都绘制完毕最后再生成Polyline对象                     
-//         pathObj = new fabric.Polyline([{ x, y }],{
-//             stroke:'#000',
-//             strokeWidth:1,
-//             fill:'transparent',
-//             objectCaching:false
-//         });
-//         canvas.add(pathObj);
-//     } else {
-//         // Polyline添加新的定位点
-//         currentIndex++; 
-//     }
-//     canvas.on('mouse:move', option=>{
-//         let { e, pointer:{ x, y }} = option;
-//         // console.log(option);
-//         if ( pathObj ){
-//             let temp = [...pathObj.points];
-//             let lastPointPos = temp[currentIndex-1];
-//             // console.log(lastPointPos);
-//             let k = ( lastPointPos.y - y ) / (x - lastPointPos.x);
-//             if ( e.shiftKey ){                          
-//                 // console.log(k);
-//                 // console.log(x,y);
-//                 // 任意角度绘制连接线，当按住Shift键时，只能绘制0,45,90度的连接线
-//                 if ( Math.abs((Math.abs(k) - Math.tan(Math.PI/4))) <= 0.3 ) {
-//                     let offsetY = Math.abs(( x - lastPointPos.x )) * Math.tan(Math.PI/4);
-//                     let newY = y <= lastPointPos.y ? lastPointPos.y - offsetY : lastPointPos.y + offsetY; 
-//                     temp[currentIndex] = { x, y: newY };
-//                 } else if ( Math.abs(k) < Math.tan(Math.PI/4)) {
-//                     temp[currentIndex] = { x, y:lastPointPos.y };
-//                 } else {                      
-//                     temp[currentIndex] = { x:lastPointPos.x, y };
-//                 } 
-//             } else {                        
-//                 temp[currentIndex] = { x, y };
-//             }
-//             pathObj.set({
-//                 points:temp
-//             });
-//             canvas.renderAll();
-//         }
-//     });
-// }
-// function handlePosition(dim, finalMatrix, fabricObject){
-//     let objX = fabricObject.points[this.pointIndex].x - fabricObject.pathOffset.x;
-//     let objY = fabricObject.points[this.pointIndex].y - fabricObject.pathOffset.y;
-//     let result = fabric.util.transformPoint(
-//         { x:objX, y:objY },
-//         fabric.util.multiplyTransformMatrices(
-//             fabricObject.canvas.viewportTransform,
-//             fabricObject.calcTransformMatrix()
-//         )
-//     )
-//     return result;
-// }
-// function handleAction(evt, transform, x, y){
-//     console.log(transform);
-//     let target = transform.target;
-//     // 视窗坐标系下拖动点和图形对象中心点的距离
-//     let center = target.getCenterPoint();
-//     let currentControl = target.controls[target.__corner];
-//     let absoluteX = x - center.x ;
-//     let absoluteY = y - center.y;
-//     // 图形坐标系下拖动点和图形对象中心点距离
-//     let mouseLocalPosition = target.toLocalPoint(new fabric.Point(x, y), 'center', 'center')
-//     console.log('-----');
-//     console.log(mouseLocalPosition);
-//     let finalPoint = {
-//         x:absoluteX + target.pathOffset.x,
-//         y:absoluteY + target.pathOffset.y
-//     };
-//     return true;
-// }
+let pathObj = null;
+let currentIndex = 1;
+
+export function endPath(canvas){
+    if ( pathObj ){
+        if ( pathObj.points.length >= 2 ){
+            // 至少有两个连接点
+            var temp = new fabric.Polyline(pathObj.points.slice(0, pathObj.points.length-1),{
+                stroke:'#ffffff',
+                strokeWidth:1,
+                fill:'transparent',
+                objectCaching:false,
+                canChecked:true
+            });
+            canvas.add(temp);
+        }    
+    }
+    canvas.remove(pathObj);
+    pathObj = null;
+    currentIndex = 1;
+}
+
+export function createPath(canvas, pointer){
+    if ( !pathObj ){
+        // pathObj临时存储鼠标绘制的points, 等所有点都绘制完毕最后再生成Polyline对象                     
+        pathObj = new fabric.Polyline([{ x:pointer.x, y:pointer.y }],{
+            stroke:'#ffffff',
+            strokeWidth:1,
+            fill:'transparent',
+            objectCaching:false
+        });
+        canvas.add(pathObj);
+    } else {
+        // Polyline添加新的定位点
+        currentIndex++; 
+    }
+    function handleMouseMove( option ){
+        let { e, pointer:{ x, y }} = option;
+        if ( pathObj ){
+            let temp = [...pathObj.points];
+            let lastPointPos = temp[currentIndex-1];
+            // console.log(lastPointPos);
+            let k = ( lastPointPos.y - y ) / (x - lastPointPos.x);
+            if ( e.shiftKey ){                          
+                // 任意角度绘制连接线，当按住Shift键时，只能绘制0,45,90度的连接线
+                if ( Math.abs((Math.abs(k) - Math.tan(Math.PI/4))) <= 0.3 ) {
+                    let offsetY = Math.abs(( x - lastPointPos.x )) * Math.tan(Math.PI/4);
+                    let newY = y <= lastPointPos.y ? lastPointPos.y - offsetY : lastPointPos.y + offsetY; 
+                    temp[currentIndex] = { x, y: newY };
+                } else if ( Math.abs(k) < Math.tan(Math.PI/4)) {
+                    temp[currentIndex] = { x, y:lastPointPos.y };
+                } else {                      
+                    temp[currentIndex] = { x:lastPointPos.x, y };
+                } 
+            } else {                        
+                temp[currentIndex] = { x, y };
+            }
+            pathObj.set({
+                points:temp
+            });
+            canvas.renderAll();
+        }
+    }
+    canvas.on('mouse:move', handleMouseMove);
+}
+
+function positionHandler(dim, finalMatirx, fabricObject){
+    // console.log(this);
+    let objX = fabricObject.points[this.pointIndex].x - fabricObject.pathOffset.x;
+    let objY = fabricObject.points[this.pointIndex].y - fabricObject.pathOffset.y;
+    let result = fabric.util.transformPoint(
+        { x:objX, y:objY },
+        fabric.util.multiplyTransformMatrices(
+            fabricObject.canvas.viewportTransform,
+            fabricObject.calcTransformMatrix()
+        )
+    )
+    return result;
+}
+
+function actionHandler(eventData, transform, x, y ){
+    var polygon = transform.target,
+		currentControl = polygon.controls[polygon.__corner],
+		mouseLocalPosition = polygon.toLocalPoint(new fabric.Point(x, y), 'center', 'center'),
+        polygonBaseSize = polygon._getNonTransformedDimensions(),
+		size = polygon._getTransformedDimensions(0, 0),
+		finalPointPosition = {
+			x: mouseLocalPosition.x * polygonBaseSize.x / size.x + polygon.pathOffset.x,
+			y: mouseLocalPosition.y * polygonBaseSize.y / size.y + polygon.pathOffset.y
+		};
+		polygon.points[currentControl.pointIndex] = finalPointPosition;
+	return true;
+}
+
+function anchorWrapper(anchorIndex, fn){
+    return function(eventData, transform, x, y) {
+        var fabricObject = transform.target,
+            absolutePoint = fabric.util.transformPoint({
+                x: (fabricObject.points[anchorIndex].x - fabricObject.pathOffset.x),
+                y: (fabricObject.points[anchorIndex].y - fabricObject.pathOffset.y),
+            }, fabricObject.calcTransformMatrix()),
+            actionPerformed = fn(eventData, transform, x, y),
+            // _setPositionDimensions会重置路径的边界框，丢失编辑前的状态，可以定位到前一个锚点的位置来保持路径定位不变
+            newDim = fabricObject._setPositionDimensions({}),
+            polygonBaseSize = fabricObject._getNonTransformedDimensions(),
+            newX = (fabricObject.points[anchorIndex].x - fabricObject.pathOffset.x) / polygonBaseSize.x,
+            newY = (fabricObject.points[anchorIndex].y - fabricObject.pathOffset.y) / polygonBaseSize.y;
+            console.log(fabricObject.points[anchorIndex].x - fabricObject.pathOffset.x);
+            console.log('size', polygonBaseSize);
+            console.log(newX, newY);
+            
+            fabricObject.setPositionByOrigin(absolutePoint, newX + 0.5, newY + 0.5);
+            // fabricObject.setPositionByOrigin(absolutePoint, 'center', 'center');
+            // console.log(newX, newY);        
+        return actionPerformed;
+      }
+}
+export function editPath(canvas, target, isEditing){
+    if ( isEditing ){
+        var lastControl = target.points.length - 1;
+        target.transparentCorners = false;
+        target.cornerStyle = 'circle';
+        target.cornerColor = 'blue';
+        target.cornerStrokeColor = '#ffffff';
+        target.controls = target.points.reduce((acc, point, index)=>{
+            acc['p' + index] = new fabric.Control({
+                pointIndex:index,
+                actionName:'modifyPoint',
+                actionHandler:anchorWrapper(index > 0 ? index - 1 : lastControl, actionHandler),
+                positionHandler,
+            });
+            return acc;
+        },{})
+    } else {
+        target.cornerColor = 'blue';
+        target.cornerStyle = 'rect';
+        target.transparentCorners = true;
+        target.controls = fabric.Object.prototype.controls;
+    }
+    target.hasBorders = !isEditing;
+    canvas.renderAll();
+}
+
 // 复制图形对象
 let activeObj = null;
 
@@ -416,27 +488,24 @@ export function cloneModel(canvas, target, pointer, onChangeTarget, onCloneFinis
     } else {
         target.clone((clonedObj)=>{
             let newId = getId();
-            let textObj = canvas.getObjects().filter(i=>i.type === 'text' && i.objId === clonedObj.objId )[0];
-            textObj.clone((clonedText)=>{
-                activeObj = clonedObj;
-                activeObj.lockRotation = true;
-                activeObj.opacity = 0.5;
-                clonedText.opacity = 0.5;
-                activeObj.flowArr = null;
-                activeObj.machId = null;
-                activeObj.objId = newId;
-                clonedText.objId = newId;
-                clonedText.text = clonedText.text + '-副本'; 
-                activeObj.initLeft = activeObj.left;
-                activeObj.initTop = activeObj.top;
-                activeObj.childNode = clonedText;
-                canvas.add(clonedText);
-                canvas.add(activeObj);
-                initExports(activeObj);
-                initExports(clonedText);
-                canvas.setActiveObject(activeObj);
-                if ( onChangeTarget ) onChangeTarget(activeObj);
-            })   
+            let textObj = new fabric.Text( target.childNode.text + '-副本', { fontSize:target.childNode.fontSize, fill:target.childNode.fill, evented:false })
+            textObj.objId = newId;
+            activeObj = clonedObj;
+            activeObj.opacity = 0.5;
+            textObj.opacity = 0.5;
+            activeObj.flowArr = null;
+            activeObj.machId = null;
+            activeObj.objId = newId;
+            activeObj.canChecked = true;
+            activeObj.initLeft = activeObj.left;
+            activeObj.initTop = activeObj.top;
+            activeObj.childNode = textObj;
+            canvas.add(activeObj);
+            canvas.add(textObj);
+            initExports(activeObj);
+            initExports(textObj);
+            canvas.setActiveObject(activeObj);
+            if ( onChangeTarget ) onChangeTarget(activeObj);
         });
     };
     function handleMouseMove({ e }){
@@ -464,27 +533,19 @@ export function cloneModel(canvas, target, pointer, onChangeTarget, onCloneFinis
             }
             wrapperEvents(activeObj);
             canvas.renderAll();
-            let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.objId !== activeObj.objId);
+            let temp = canvas.getObjects().filter(i=> graphTypes.includes(i.type) && i.canChecked && i.objId !== activeObj.objId);
             if ( onCloneFinish ) onCloneFinish(temp);
         }
         activeObj = null;
+        target.lockMovementX = false;
+        target.lockMovementY = false;
         canvas.off('mouse:move', handleMouseMove);
         canvas.off('mouse:up', handleMouseUp);
     }
     canvas.on('mouse:move', handleMouseMove);
     canvas.on('mouse:up', handleMouseUp);
 } 
-// 更新管道对象的属性
-export function updatePipeAttr(canvas, target, attrName, value, isPipe){
-    let pipePath = target.pipePath;
-    if ( isPipe && pipePath ){
-        pipePath.set({ [attrName]:value });
-        canvas.renderAll();
-    } else {
-        target.set({ [attrName]:value });
-        canvas.renderAll();
-    }
-}
+
 // 更新文本对象的某项属性
 export function updateTextAttr(canvas, target, attrName, value ){
     if ( target.childNode ){
@@ -492,9 +553,9 @@ export function updateTextAttr(canvas, target, attrName, value ){
             [attrName === 'fontColor' ? 'fill' : attrName]:value
         });
         if ( attrName === 'text' || attrName === 'fontSize' ) {
-            let boundingRect = target.getBoundingRect();
+            let boundingRect = target.getBoundingRect(true);
             target.childNode.set({
-                left:boundingRect.left + boundingRect.width/2 - target.childNode.width/2,
+                left:boundingRect.left + boundingRect.width/2,
                 top:boundingRect.top + boundingRect.height + 10
             }); 
         }    
@@ -511,7 +572,7 @@ export function updateTargetAttr(canvas, target, attrName, value ){
         let boundingRect = target.getBoundingRect();
         if ( target.childNode ){
             target.childNode.set({
-                left:boundingRect.left + boundingRect.width/2 - target.childNode.width/2,
+                left:boundingRect.left + boundingRect.width/2 ,
                 top:boundingRect.top + boundingRect.height + 10
             });
         }
@@ -537,16 +598,24 @@ export function updateTargetAttr(canvas, target, attrName, value ){
     } 
 }
 
-function _delSingleTarget(canvas, target){
+function _delSingleTarget(canvas, target, graphObjs){
+    // 清除模型的标题文字
     if ( target.childNode ) {
         canvas.remove(target.childNode);
     }
-    let graphObjs = canvas.getObjects().filter(i=>graphTypes.includes(i.type));
+    // 清除模型的标注信息
+    if ( target.tags && target.tags.length ){
+        target.tags.forEach((tag, index)=>{
+            if ( tag.bgObj ){
+                canvas.remove(tag.bgObj);
+            }
+            canvas.remove(tag);
+        });
+    }
     if ( target.flowArr ) {
-
         // 清除挂载在模型上的所有关联管道
         target.flowArr.forEach(obj=>{
-            let startObj = graphObjs.filter(i=>i.objId === obj.start);
+            // let startObj = graphObjs.filter(i=>i.objId === obj.start);
             let endObj = graphObjs.filter(i=>i.objId === obj.end);
             if ( endObj.flowArr && endObj.flowArr.length ){
                 endObj.flowArr = endObj.flowArr.filter(i=>i.objId !== obj.objId);   
@@ -558,22 +627,30 @@ function _delSingleTarget(canvas, target){
     } 
     canvas.remove(target);
 }
+
 export function delTarget(canvas, currentTarget){
     if ( currentTarget ){
+        canvas.discardActiveObject();
+        let graphObjs = canvas.getObjects().filter(i=>graphTypes.includes(i.type));
         if ( currentTarget.type === 'activeSelection' || currentTarget.type === 'group' ) {
             currentTarget.forEachObject(obj=>{
-                _delSingleTarget(canvas, obj);
+                _delSingleTarget(canvas, obj, graphObjs);
             })
         } else {
-            _delSingleTarget(canvas, currentTarget);
+            _delSingleTarget(canvas, currentTarget, graphObjs);
         }
-        canvas.discardActiveObject();
-        canvas.renderAll();
     }
+}
+
+export function delAll(canvas){
+    canvas.getObjects().filter(i=>graphTypes.includes(i.type)).forEach(obj=>{
+        delTarget(canvas, obj);
+    })
 }
 
 export function addLabel(canvas, target, opts, updateIndex, isDelete){
     let { text, fontSize, fontColor, hasBg, bgType, bgColor, offsetX, offsetY } = opts;
+    let id = getId();
     if ( updateIndex !== null && target.tags ) {
         target.tags = target.tags.filter((tag, index)=>{
             if ( index === updateIndex ){
@@ -588,10 +665,11 @@ export function addLabel(canvas, target, opts, updateIndex, isDelete){
             return;
         }
     }
-    let boundingBox = target.getBoundingRect();
+    let boundingBox = target.getBoundingRect(true);
     let centerX = boundingBox.left + ( offsetX / 100 ) * boundingBox.width;
     let centerY = boundingBox.top + ( offsetY / 100 ) * boundingBox.height;
     let textObj = new fabric.Text(text, { fontSize, fill:fontColor, evented:false, originX:'center', originY:'center', left:centerX, top:centerY, angle:target.angle });
+    textObj.objId = id;
     textObj.selectable = false;
     textObj.hasBg = hasBg;
     textObj.bgType = bgType;
@@ -606,6 +684,7 @@ export function addLabel(canvas, target, opts, updateIndex, isDelete){
                 height:textObj.height + 2 * tagPadding,
                 left:centerX,
                 top:centerY,
+                objId:id,
                 originX:'center',
                 originY:'center',
                 angle:target.angle,
@@ -613,25 +692,28 @@ export function addLabel(canvas, target, opts, updateIndex, isDelete){
                 evented:false,
             })
         } else if ( bgType === 'Circle') {
-            let radius = textObj.width/ 2 + tagPadding;
             bgObj = new fabric.Circle({
                 left:centerX,
                 top:centerY,
                 originX:'center',
                 originY:'center',
+                objId:id,
                 angle:target.angle,
                 radius:textObj.width/2 + tagPadding,
                 fill:bgColor,
                 evented:false,
             })
+        
         }
     } 
     if ( bgObj ){
         bgObj.selectable = false;
         textObj.bgObj = bgObj;
+        initExports(bgObj);
         canvas.add(bgObj);
     }
     canvas.add(textObj);
+    initExports(textObj);
     if ( !target.tags ) {
         target.tags = [textObj];
     } else {
@@ -705,15 +787,17 @@ export function savePaint(canvas){
 export function load(canvas){
     canvas.clear();
     canvas.loadFromJSON(json, function(){
-        let textObjs = [], pipeObjs = [], models = [];
+        let textObjs = [], pipeObjs = [], models = [], rest = [];
         canvas.getObjects().forEach(obj=>{
             initExports(obj);
             if ( obj.type === 'text') {
                 textObjs.push(obj);
             } else if ( obj.type === 'polyline' ) {
                 pipeObjs.push(obj);
-            } else {
+            } else if ( obj.canChecked ){
                 models.push(obj);
+            } else {
+                rest.push(obj);
             }
         });
         let textIds = textObjs.map(i=>i.objId);
@@ -721,9 +805,9 @@ export function load(canvas){
         pipeObjs.forEach(obj=>{
             if ( obj.start && obj.end ){
                 // 初始化管道的配置信息
-                obj.start = models.filter(i=>i.objId === obj.start)[0];
-                obj.end = models.filter(i=>i.objId === obj.end)[0];
+                obj.strokeLength = obj.opts.strokeLength;
                 obj.pipePath = pipeObjs.filter(i=>i.objId === obj.objId && !i.start )[0];
+                console.log(obj);
                 startMotion(canvas, obj);
             }
         })
@@ -733,10 +817,19 @@ export function load(canvas){
             if ( textIndex !== -1 ) {
                 obj.childNode = textObjs[textIndex];
             }
-            if ( obj.type === 'image' ) {
-                obj.lockRotation = true;
+            if ( obj.tags && obj.tags.length ) {
+                obj.tags = obj.tags.map(tag=>{
+                    let result = textObjs.filter(i=>i.objId === tag)[0];
+                    let bgObj = rest.filter(i=>i.objId === tag )[0];
+                    if ( bgObj ){
+                        result.bgObj = bgObj;
+                    }
+                    return result;
+                })
             }
-            obj.flowArr = obj.flowArr && obj.flowArr.length ? obj.flowArr.map(i=>pipeObjs.filter(j=>j.objId === i && j.start )[0]) : null            
+            if ( obj.flowArr && obj.flowArr.length ){
+                obj.flowArr = obj.flowArr && obj.flowArr.length ? obj.flowArr.map(i=>pipeObjs.filter(j=>j.objId === i && j.start )[0]) : null 
+            }
         });
     });
 }
